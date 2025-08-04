@@ -24,6 +24,7 @@ import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
 import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
 import {SharesMath} from 'src/libraries/math/SharesMath.sol';
 import {MathUtils} from 'src/libraries/math/MathUtils.sol';
+import {Constants} from 'src/libraries/helpers/Constants.sol';
 import {PositionStatus} from 'src/libraries/configuration/PositionStatus.sol';
 import {AssetInterestRateStrategy, IAssetInterestRateStrategy, IBasicInterestRateStrategy} from 'src/contracts/AssetInterestRateStrategy.sol';
 import {PositionStatus} from 'src/libraries/configuration/PositionStatus.sol';
@@ -360,8 +361,8 @@ abstract contract Base is Test {
   function configureTokenList() internal {
     DataTypes.SpokeConfig memory spokeConfig = DataTypes.SpokeConfig({
       active: true,
-      addCap: UINT256_MAX,
-      drawCap: UINT256_MAX
+      addCap: Constants.MAX_CAP,
+      drawCap: Constants.MAX_CAP
     });
 
     bytes memory encodedIrData = abi.encode(
@@ -1054,7 +1055,7 @@ abstract contract Base is Test {
 
   function updateLiquidityFee(IHub hub, uint256 assetId, uint256 liquidityFee) internal pausePrank {
     DataTypes.AssetConfig memory config = hub1.getAssetConfig(assetId);
-    config.liquidityFee = liquidityFee;
+    config.liquidityFee = liquidityFee.toUint16();
     vm.prank(HUB_ADMIN);
     hub1.updateAssetConfig(assetId, config);
 
@@ -1128,7 +1129,7 @@ abstract contract Base is Test {
     IHub hub,
     uint256 assetId,
     address spoke,
-    uint256 newDrawCap
+    uint56 newDrawCap
   ) internal pausePrank {
     DataTypes.SpokeConfig memory spokeConfig = hub.getSpokeConfig(assetId, spoke);
     spokeConfig.drawCap = newDrawCap;
@@ -2041,7 +2042,7 @@ abstract contract Base is Test {
 
     vm.assertEq(
       asset.drawnRate,
-      IBasicInterestRateStrategy(asset.config.irStrategy).calculateInterestRate(
+      IBasicInterestRateStrategy(asset.irStrategy).calculateInterestRate(
         assetId,
         asset.liquidity,
         drawn,

@@ -102,7 +102,12 @@ contract SpokeOperations_Gas_Tests is Base {
     spoke1.setUsingAsCollateral(_usdxReserveId(spoke1), true, alice);
 
     spoke1.borrow(_daiReserveId(spoke1), 500e18, alice);
-    vm.snapshotGasLastCall('Spoke.Operations', 'borrow');
+    vm.snapshotGasLastCall('Spoke.Operations', 'borrow: first');
+
+    skip(60);
+
+    spoke1.borrow(_daiReserveId(spoke1), 1e18, alice);
+    vm.snapshotGasLastCall('Spoke.Operations', 'borrow: second action, same reserve');
     vm.stopPrank();
   }
 

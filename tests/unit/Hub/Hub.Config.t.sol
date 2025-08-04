@@ -6,6 +6,7 @@ import 'tests/unit/Hub/HubBase.t.sol';
 contract HubConfigTest is HubBase {
   using SharesMath for uint256;
   using WadRayMath for uint32;
+  using SafeCast for uint256;
 
   bytes public encodedIrData;
 
@@ -94,7 +95,7 @@ contract HubConfigTest is HubBase {
     assumeNotZeroAddress(feeReceiver);
     assumeNotZeroAddress(interestRateStrategy);
 
-    decimals = uint8(bound(decimals, hub1.MAX_ALLOWED_ASSET_DECIMALS() + 1, type(uint8).max));
+    decimals = uint8(bound(decimals, Constants.MAX_ALLOWED_ASSET_DECIMALS + 1, type(uint8).max));
 
     vm.expectRevert(IHub.InvalidAssetDecimals.selector);
     Utils.addAsset(
@@ -133,7 +134,7 @@ contract HubConfigTest is HubBase {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(interestRateStrategy);
 
-    decimals = uint8(bound(decimals, 0, hub1.MAX_ALLOWED_ASSET_DECIMALS()));
+    decimals = uint8(bound(decimals, 0, Constants.MAX_ALLOWED_ASSET_DECIMALS));
 
     vm.expectRevert(IHub.InvalidFeeReceiver.selector);
     Utils.addAsset(
@@ -155,7 +156,7 @@ contract HubConfigTest is HubBase {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(feeReceiver);
 
-    decimals = uint8(bound(decimals, 0, hub1.MAX_ALLOWED_ASSET_DECIMALS()));
+    decimals = uint8(bound(decimals, 0, Constants.MAX_ALLOWED_ASSET_DECIMALS));
 
     vm.expectRevert(IHub.InvalidIrStrategy.selector);
     Utils.addAsset(hub1, ADMIN, underlying, decimals, feeReceiver, address(0), encodedIrData);
@@ -170,7 +171,7 @@ contract HubConfigTest is HubBase {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(feeReceiver);
     assumeNotZeroAddress(interestRateStrategy);
-    decimals = uint8(bound(decimals, 0, hub1.MAX_ALLOWED_ASSET_DECIMALS()));
+    decimals = uint8(bound(decimals, 0, Constants.MAX_ALLOWED_ASSET_DECIMALS));
 
     vm.expectRevert();
     Utils.addAsset(
@@ -184,11 +185,25 @@ contract HubConfigTest is HubBase {
     );
   }
 
+  function test_addAsset_revertsWith_DrawnRateDowncastOverflow() public {
+    uint256 drawnRateRay = uint256(type(uint128).max) + 1;
+    _mockInterestRateRay(drawnRateRay);
+    vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 128, drawnRateRay));
+    Utils.addAsset(hub1, ADMIN, address(tokenList.dai), 18, address(treasurySpoke), address(irStrategy), encodedIrData);
+  }
+
+  function test_addAsset_revertsWith_BlockTimestampDowncastOverflow() public {
+    uint256 blockTimestamp = uint256(type(uint40).max) + 1;
+    vm.warp(blockTimestamp);
+    vm.expectRevert(abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 40, blockTimestamp));
+    Utils.addAsset(hub1, ADMIN, address(tokenList.dai), 18, address(treasurySpoke), address(irStrategy), encodedIrData);
+  }
+
   function test_addAsset_fuzz(address underlying, uint8 decimals, address feeReceiver) public {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(feeReceiver);
 
-    decimals = uint8(bound(decimals, 0, hub1.MAX_ALLOWED_ASSET_DECIMALS()));
+    decimals = uint8(bound(decimals, 0, Constants.MAX_ALLOWED_ASSET_DECIMALS));
 
     uint256 expectedAssetId = hub1.getAssetCount();
     address interestRateStrategy = address(new AssetInterestRateStrategy(address(hub1)));
@@ -251,7 +266,7 @@ contract HubConfigTest is HubBase {
   ) public {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
     _assumeValidAssetConfig(assetId, newConfig);
-    newConfig.liquidityFee = vm.randomUint(PercentageMath.PERCENTAGE_FACTOR + 1, type(uint256).max);
+    newConfig.liquidityFee = vm.randomUint(PercentageMath.PERCENTAGE_FACTOR + 1, type(uint16).max).toUint16();
     vm.expectRevert(IHub.InvalidLiquidityFee.selector);
     vm.prank(HUB_ADMIN);
     hub1.updateAssetConfig(assetId, newConfig);
@@ -263,7 +278,7 @@ contract HubConfigTest is HubBase {
   ) public {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
     _assumeValidAssetConfig(assetId, newConfig);
-    newConfig.liquidityFee = vm.randomUint(1, PercentageMath.PERCENTAGE_FACTOR);
+    newConfig.liquidityFee = vm.randomUint(1, PercentageMath.PERCENTAGE_FACTOR).toUint16();
     newConfig.feeReceiver = address(0);
     vm.expectRevert(IHub.InvalidFeeReceiver.selector);
     vm.prank(HUB_ADMIN);
@@ -408,9 +423,9 @@ contract HubConfigTest is HubBase {
   }
 
   /// Triggers accrual when liquidity fee update, based on old liquidity fee
-  function test_updateAssetConfig_fuzz_LiquidityFee(uint256 assetId, uint256 liquidityFee) public {
+  function test_updateAssetConfig_fuzz_LiquidityFee(uint256 assetId, uint16 liquidityFee) public {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
-    liquidityFee = bound(liquidityFee, 1, PercentageMath.PERCENTAGE_FACTOR);
+    liquidityFee = bound(liquidityFee, 1, PercentageMath.PERCENTAGE_FACTOR).toUint16();
 
     uint256 amount = 1000e18;
     _addLiquidity(assetId, amount);
@@ -429,10 +444,10 @@ contract HubConfigTest is HubBase {
   /// No fees accrued whe updating liquidity fee from zero to non-zero
   function test_updateAssetConfig_fuzz_FromZeroLiquidityFee(
     uint256 assetId,
-    uint256 liquidityFee
+    uint16 liquidityFee
   ) public {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
-    liquidityFee = bound(liquidityFee, 1, PercentageMath.PERCENTAGE_FACTOR);
+    liquidityFee = bound(liquidityFee, 1, PercentageMath.PERCENTAGE_FACTOR).toUint16();
 
     DataTypes.AssetConfig memory config = hub1.getAssetConfig(assetId);
     config.liquidityFee = 0;
@@ -480,7 +495,7 @@ contract HubConfigTest is HubBase {
     uint256 assetId,
     DataTypes.AssetConfig memory newConfig
   ) internal pure {
-    newConfig.liquidityFee = bound(newConfig.liquidityFee, 0, PercentageMath.PERCENTAGE_FACTOR);
+    newConfig.liquidityFee = bound(newConfig.liquidityFee, 0, PercentageMath.PERCENTAGE_FACTOR).toUint16();
     vm.assume(address(newConfig.feeReceiver) != address(0) || newConfig.liquidityFee == 0);
     assumeNotPrecompile(newConfig.feeReceiver);
     assumeNotForgeAddress(newConfig.feeReceiver);
