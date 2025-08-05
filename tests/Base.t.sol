@@ -47,6 +47,7 @@ import {IAccessManager} from 'src/dependencies/openzeppelin/IAccessManager.sol';
 import {IAccessManaged} from 'src/dependencies/openzeppelin/IAccessManaged.sol';
 import {AuthorityUtils} from 'src/dependencies/openzeppelin/AuthorityUtils.sol';
 import {Ownable} from 'src/dependencies/openzeppelin/Ownable.sol';
+import {Math} from 'src/dependencies/openzeppelin/Math.sol';
 import {WETH9} from 'src/dependencies/weth/WETH9.sol';
 import {LibBit} from 'src/dependencies/solady/LibBit.sol';
 
@@ -1219,17 +1220,13 @@ abstract contract Base is Test {
     return hub.getAsset(assetId).drawnRate;
   }
 
-  /// TODO: Once inflation protection implemented, can remove boolean param since rate should always monotonically increase
   /// @dev Helper function to ensure supply exchange rate is monotonically increasing
   function _checkSupplyRateIncreasing(
     uint256 oldRate,
     uint256 newRate,
-    bool allWithdrawn,
     string memory label
   ) internal pure {
-    if (!allWithdrawn) {
-      assertGe(newRate, oldRate, string.concat('supply rate monotonically increasing ', label));
-    }
+    assertGe(newRate, oldRate, string.concat('supply rate monotonically increasing ', label));
   }
 
   function _checkDebtRateConstant(
@@ -1488,7 +1485,7 @@ abstract contract Base is Test {
     assertApproxEqAbs(
       spoke.getUserSuppliedAmount(reserveId, user),
       expectedSuppliedAmount,
-      2,
+      3,
       string.concat('user supplied amount ', label)
     );
   }
@@ -1737,6 +1734,14 @@ abstract contract Base is Test {
   function getAssetDrawnDebt(uint256 assetId) internal view returns (uint256) {
     (uint256 drawn, ) = hub1.getAssetOwed(assetId);
     return drawn;
+  }
+
+  /// @dev Helper function to calculate burnt interest in assets terms (originated from virtual shares and assets)
+  function _calculateBurntInterest(
+    IHub hub,
+    uint256 assetId
+  ) internal view returns (uint256) {
+    return hub.getTotalAddedAssets(assetId) - hub.previewRemoveByShares(assetId, hub.getTotalAddedShares(assetId));
   }
 
   /// @dev Helper function to withdraw fees from the treasury spoke
