@@ -412,7 +412,6 @@ contract HubConfigTest is HubBase {
         assetId: assetId,
         liquidity: liquidity,
         drawn: drawn,
-        premium: premium,
         deficit: 0,
         swept: 0
       }),

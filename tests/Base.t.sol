@@ -2154,7 +2154,6 @@ abstract contract Base is Test {
     uint256 assetId,
     uint256 liquidity,
     uint256 drawn,
-    uint256 premium,
     uint256 deficit,
     uint256 swept
   ) internal {
@@ -2164,7 +2163,6 @@ abstract contract Base is Test {
       assetId,
       liquidity,
       drawn,
-      premium,
       deficit,
       swept
     );
@@ -2176,7 +2174,6 @@ abstract contract Base is Test {
     uint256 assetId,
     uint256 liquidity,
     uint256 drawn,
-    uint256 premium,
     uint256 deficit,
     uint256 swept
   ) internal {
@@ -2184,7 +2181,7 @@ abstract contract Base is Test {
       interestRateStrategy,
       abi.encodeCall(
         IBasicInterestRateStrategy.calculateInterestRate,
-        (assetId, liquidity, drawn, premium, deficit, swept)
+        (assetId, liquidity, drawn, deficit, swept)
       ),
       abi.encode(interestRateBps.bpsToRay())
     );
@@ -2206,19 +2203,9 @@ abstract contract Base is Test {
     uint256 interestRateRay,
     uint256 assetId,
     uint256 liquidity,
-    uint256 drawn,
-    uint256 premium
+    uint256 drawn
   ) internal {
-    _mockInterestRateRay(
-      address(irStrategy),
-      interestRateRay,
-      assetId,
-      liquidity,
-      drawn,
-      premium,
-      0,
-      0
-    );
+    _mockInterestRateRay(address(irStrategy), interestRateRay, assetId, liquidity, drawn, 0, 0);
   }
 
   function _mockInterestRateRay(
@@ -2227,7 +2214,6 @@ abstract contract Base is Test {
     uint256 assetId,
     uint256 liquidity,
     uint256 drawn,
-    uint256 premium,
     uint256 deficit,
     uint256 swept
   ) internal {
@@ -2235,7 +2221,7 @@ abstract contract Base is Test {
       interestRateStrategy,
       abi.encodeCall(
         IBasicInterestRateStrategy.calculateInterestRate,
-        (assetId, liquidity, drawn, premium, deficit, swept)
+        (assetId, liquidity, drawn, deficit, swept)
       ),
       abi.encode(interestRateRay)
     );
@@ -2280,7 +2266,6 @@ abstract contract Base is Test {
         assetId,
         asset.liquidity,
         drawn,
-        premium,
         asset.deficit,
         asset.swept
       ),
