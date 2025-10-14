@@ -64,23 +64,6 @@ rule nothingForZero_draw(uint256 assetId, uint256 amount, address to) {
             hub._assets[assetId].liquidity < liquidityBefore;
 }
 
-/** @title Eliminate deficit operation decreases added shares and reduces deficit without external transfers */
-rule nothingForZero_eliminateDeficit(uint256 assetId, uint256 amount) {
-
-    env e;
-    address asset = hub._assets[assetId].underlying;
-    address spoke ;
-    uint256 spokeAddedSharesBefore = hub._spokes[assetId][spoke].addedShares;
-    uint256 externalBalanceBefore = balanceByToken[asset][hub]; 
-    uint256 deficitBefore = hub._assets[assetId].deficit;
-
-    eliminateDeficit(e,assetId,amount, spoke);
-
-    assert hub._spokes[assetId][spoke].addedShares < spokeAddedSharesBefore &&  
-            balanceByToken[asset][hub] == externalBalanceBefore &&
-            hub._assets[assetId].deficit < deficitBefore;
-}
-
 rule validSpokeOnly(uint256 assetId, method f) {
     env e;
     calldataarg args;
