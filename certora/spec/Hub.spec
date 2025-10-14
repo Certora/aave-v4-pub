@@ -31,7 +31,6 @@ methods {
     function _validateDraw(
         IHub.Asset storage asset,
         IHub.SpokeData storage spoke,
-        uint256 assetId,
         uint256 amount,
         address to
     ) internal => NONDET;
