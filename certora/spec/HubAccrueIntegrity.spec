@@ -206,18 +206,6 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
     else if (f.selector == sig:previewRestoreByShares(uint256,uint256).selector) {
         return previewRestoreByShares(e, args);
     }
-    else if (f.selector == sig:convertToAddedAssets(uint256,uint256).selector) {
-        return convertToAddedAssets(e, args);
-    }
-    else if (f.selector == sig:convertToAddedShares(uint256,uint256).selector) {
-        return convertToAddedShares(e, args);
-    }
-    else if (f.selector == sig:convertToDrawnAssets(uint256,uint256).selector) {
-        return convertToDrawnAssets(e, args);
-    }
-    else if (f.selector == sig:convertToDrawnShares(uint256,uint256).selector) {
-        return convertToDrawnShares(e, args);
-    }
     else if (f.selector == sig:getAssetDrawnIndex(uint256).selector) {
         return getAssetDrawnIndex(e, args);
     }
