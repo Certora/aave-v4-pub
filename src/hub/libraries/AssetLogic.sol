@@ -60,14 +60,15 @@ library AssetLogic {
 
   /// @notice Returns the total premium amount for the specified asset.
   function premium(IHub.Asset storage asset) internal view returns (uint256) {
-    // sanity: utilize solc underflow check
     uint256 accruedPremium = asset.toDrawnAssetsUp(asset.premiumShares) - asset.premiumOffset;
     return asset.realizedPremium + accruedPremium;
   }
 
   /// @notice Returns the total amount owed for the specified asset, including drawn and premium.
   function totalOwed(IHub.Asset storage asset) internal view returns (uint256) {
-    return asset.drawn() + asset.premium();
+    uint256 drawnIndex = asset.getDrawnIndex();
+    uint256 accruedPremium = asset.premiumShares.rayMulUp(drawnIndex) - asset.premiumOffset;
+    return asset.drawnShares.rayMulUp(drawnIndex) + asset.realizedPremium + accruedPremium;
   }
 
   /// @notice Returns the total added assets for the specified asset.
@@ -114,18 +115,19 @@ library AssetLogic {
 
   /// @notice Updates the drawn rate of a specified asset.
   /// @dev Premium debt is not used in the interest rate calculation.
+  /// @dev Uses last stored index, asset accrual should have already occurred.
   function updateDrawnRate(IHub.Asset storage asset, uint256 assetId) internal {
+    uint256 drawnIndex = asset.drawnIndex;
     uint256 newDrawnRate = IBasicInterestRateStrategy(asset.irStrategy).calculateInterestRate({
       assetId: assetId,
       liquidity: asset.liquidity,
-      drawn: asset.drawn(),
+      drawn: asset.drawnShares.rayMulUp(drawnIndex),
       deficit: asset.deficit,
       swept: asset.swept
     });
     asset.drawnRate = newDrawnRate.toUint96();
 
-    // asset accrual should have already occurred
-    emit IHub.UpdateAsset(assetId, asset.drawnIndex, newDrawnRate);
+    emit IHub.UpdateAsset(assetId, drawnIndex, newDrawnRate);
   }
 
   /// @notice Accrues interest and fees for the specified asset.
@@ -179,11 +181,11 @@ library AssetLogic {
     uint256 liquidityFee = asset.liquidityFee;
     if (liquidityFee == 0) return 0;
 
-    // @dev we do not simplify further to avoid overestimating the liquidity growth
-    uint256 feesAmount = (asset.drawnShares.rayMulDown(indexDelta) +
+    // we do not simplify further to avoid overestimating the liquidity growth
+    uint256 feeAmount = (asset.drawnShares.rayMulDown(indexDelta) +
       asset.premiumShares.rayMulDown(indexDelta)).percentMulDown(liquidityFee);
 
-    return feesAmount.toSharesDown(asset.totalAddedAssets() - feesAmount, asset.addedShares);
+    return feeAmount.toSharesDown(asset.totalAddedAssets() - feeAmount, asset.addedShares);
   }
 
   /// @notice Calculates the amount of unrealized fee shares since last accrual.

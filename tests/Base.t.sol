@@ -58,6 +58,7 @@ import {LiquidationLogic} from 'src/spoke/libraries/LiquidationLogic.sol';
 import {KeyValueList} from 'src/spoke/libraries/KeyValueList.sol';
 
 // position manager
+import {GatewayBase, IGatewayBase} from 'src/position-manager/GatewayBase.sol';
 import {NativeTokenGateway, INativeTokenGateway} from 'src/position-manager/NativeTokenGateway.sol';
 import {SignatureGateway, ISignatureGateway} from 'src/position-manager/SignatureGateway.sol';
 
@@ -71,6 +72,7 @@ import {MockERC20} from 'tests/mocks/MockERC20.sol';
 import {MockPriceFeed} from 'tests/mocks/MockPriceFeed.sol';
 import {PositionStatusMapWrapper} from 'tests/mocks/PositionStatusMapWrapper.sol';
 import {RescuableWrapper} from 'tests/mocks/RescuableWrapper.sol';
+import {GatewayBaseWrapper} from 'tests/mocks/GatewayBaseWrapper.sol';
 import {NoncesKeyedMock} from 'tests/mocks/NoncesKeyedMock.sol';
 import {MockSpoke} from 'tests/mocks/MockSpoke.sol';
 import {MockERC1271Wallet} from 'tests/mocks/MockERC1271Wallet.sol';
@@ -1341,11 +1343,11 @@ abstract contract Base is Test {
   }
 
   function getAddExRate(uint256 assetId) internal view returns (uint256) {
-    return hub1.convertToAddedAssets(assetId, MAX_SUPPLY_AMOUNT);
+    return hub1.previewRemoveByShares(assetId, MAX_SUPPLY_AMOUNT);
   }
 
   function getDebtExRate(uint256 assetId) internal view returns (uint256) {
-    return hub1.convertToDrawnAssets(assetId, MAX_SUPPLY_AMOUNT);
+    return hub1.previewRestoreByShares(assetId, MAX_SUPPLY_AMOUNT);
   }
 
   function getDeficit(IHub hub, uint256 assetId) internal view returns (uint256) {
@@ -1485,7 +1487,7 @@ abstract contract Base is Test {
     uint256 expectedSuppliedAmount,
     string memory label
   ) internal view {
-    uint256 expectedSuppliedShares = hub1.convertToAddedShares(assetId, expectedSuppliedAmount);
+    uint256 expectedSuppliedShares = hub1.previewAddByAssets(assetId, expectedSuppliedAmount);
     assertEq(
       hub1.getAddedShares(assetId),
       expectedSuppliedShares,
