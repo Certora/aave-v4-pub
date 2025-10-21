@@ -3,10 +3,9 @@
 pragma solidity 0.8.28;
 
 import {EnumerableSet} from 'src/dependencies/openzeppelin/EnumerableSet.sol';
-import {SafeERC20} from 'src/dependencies/openzeppelin/SafeERC20.sol';
-import {IERC20} from 'src/dependencies/openzeppelin/IERC20.sol';
 import {AccessManaged} from 'src/dependencies/openzeppelin/AccessManaged.sol';
 import {SafeCast} from 'src/dependencies/openzeppelin/SafeCast.sol';
+import {SafeTransferLib} from 'src/dependencies/solady/SafeTransferLib.sol';
 import {MathUtils} from 'src/libraries/math/MathUtils.sol';
 import {PercentageMath} from 'src/libraries/math/PercentageMath.sol';
 import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
@@ -20,11 +19,11 @@ import {IHubBase, IHub} from 'src/hub/interfaces/IHub.sol';
 /// @notice A liquidity hub that manages assets and spokes.
 contract Hub is IHub, AccessManaged {
   using EnumerableSet for EnumerableSet.AddressSet;
-  using SafeERC20 for IERC20;
+  using SafeTransferLib for address;
   using SafeCast for uint256;
   using WadRayMath for uint256;
   using SharesMath for uint256;
-  using PercentageMath for uint256;
+  using PercentageMath for uint128;
   using AssetLogic for Asset;
   using MathUtils for *;
 
@@ -35,7 +34,10 @@ contract Hub is IHub, AccessManaged {
   uint8 public constant MIN_ALLOWED_UNDERLYING_DECIMALS = 6;
 
   /// @inheritdoc IHub
-  uint56 public constant MAX_ALLOWED_SPOKE_CAP = type(uint56).max;
+  uint40 public constant MAX_ALLOWED_SPOKE_CAP = type(uint40).max;
+
+  /// @inheritdoc IHub
+  uint24 public constant MAX_ALLOWED_RISK_PREMIUM_CAP = type(uint24).max;
 
   uint256 internal _assetCount;
   mapping(uint256 assetId => Asset) internal _assets;
@@ -142,7 +144,7 @@ contract Hub is IHub, AccessManaged {
       _updateSpokeConfig(
         assetId,
         asset.feeReceiver,
-        SpokeConfig({active: true, paused: false, addCap: 0, drawCap: 0})
+        SpokeConfig({addCap: 0, drawCap: 0, riskPremiumCap: 0, active: true, paused: false})
       );
       asset.feeReceiver = config.feeReceiver;
       _addFeeReceiver(assetId, config.feeReceiver);
@@ -204,7 +206,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransferFrom(from, address(this), amount);
+    asset.underlying.safeTransferFrom(from, address(this), amount);
 
     emit Add(assetId, msg.sender, shares, amount);
 
@@ -228,7 +230,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransfer(to, amount);
+    asset.underlying.safeTransfer(to, amount);
 
     emit Remove(assetId, msg.sender, shares, amount);
 
@@ -252,7 +254,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransfer(to, amount);
+    asset.underlying.safeTransfer(to, amount);
 
     emit Draw(assetId, msg.sender, drawnShares, amount);
 
@@ -282,7 +284,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransferFrom(from, address(this), totalAmount);
+    asset.underlying.safeTransferFrom(from, address(this), totalAmount);
 
     emit Restore(assetId, msg.sender, drawnShares, premiumDelta, drawnAmount, premiumAmount);
 
@@ -400,7 +402,7 @@ contract Hub is IHub, AccessManaged {
     asset.swept += amount.toUint128();
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransfer(msg.sender, amount);
+    asset.underlying.safeTransfer(msg.sender, amount);
 
     emit Sweep(assetId, msg.sender, amount);
   }
@@ -417,7 +419,7 @@ contract Hub is IHub, AccessManaged {
     asset.swept -= amount.toUint128();
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransferFrom(msg.sender, address(this), amount);
+    asset.underlying.safeTransferFrom(msg.sender, address(this), amount);
 
     emit Reclaim(assetId, msg.sender, amount);
   }
@@ -620,7 +622,14 @@ contract Hub is IHub, AccessManaged {
     address spoke
   ) external view returns (SpokeConfig memory) {
     SpokeData storage spokeData = _spokes[assetId][spoke];
-    return SpokeConfig(spokeData.active, spokeData.paused, spokeData.addCap, spokeData.drawCap);
+    return
+      SpokeConfig({
+        addCap: spokeData.addCap,
+        drawCap: spokeData.drawCap,
+        riskPremiumCap: spokeData.riskPremiumCap,
+        active: spokeData.active,
+        paused: spokeData.paused
+      });
   }
 
   /// @notice Adds a new spoke to an asset with default feeReceiver configuration (maximum add cap, zero draw cap).
@@ -629,7 +638,13 @@ contract Hub is IHub, AccessManaged {
     _updateSpokeConfig(
       assetId,
       feeReceiver,
-      SpokeConfig({active: true, paused: false, addCap: MAX_ALLOWED_SPOKE_CAP, drawCap: 0})
+      SpokeConfig({
+        addCap: MAX_ALLOWED_SPOKE_CAP,
+        drawCap: 0,
+        riskPremiumCap: 0,
+        active: true,
+        paused: false
+      })
     );
   }
 
@@ -642,10 +657,11 @@ contract Hub is IHub, AccessManaged {
 
   function _updateSpokeConfig(uint256 assetId, address spoke, SpokeConfig memory config) internal {
     SpokeData storage spokeData = _spokes[assetId][spoke];
-    spokeData.active = config.active;
-    spokeData.paused = config.paused;
     spokeData.addCap = config.addCap;
     spokeData.drawCap = config.drawCap;
+    spokeData.riskPremiumCap = config.riskPremiumCap;
+    spokeData.active = config.active;
+    spokeData.paused = config.paused;
     emit UpdateSpokeConfig(assetId, spoke, config);
   }
 
@@ -662,8 +678,10 @@ contract Hub is IHub, AccessManaged {
     receiver.addedShares += shares.toUint128();
   }
 
-  /// @dev Applies premium deltas on asset & spoke premium owed, also checks premium
-  /// does not increase by more than `premiumAmount`.
+  /// @dev Applies premium deltas on asset & spoke premium owed.
+  /// @dev Checks premium owed does not increase by more than `premiumAmount`.
+  /// @dev Checks updated risk premium is within allowed limit.
+  /// @dev Can increase premium by 2 wei due to opposite rounding on premium shares and offset.
   function _applyPremiumDelta(
     Asset storage asset,
     SpokeData storage spoke,
@@ -671,6 +689,7 @@ contract Hub is IHub, AccessManaged {
     uint256 premiumAmount
   ) internal {
     uint256 drawnIndex = asset.getDrawnIndex();
+
     // asset premium change
     (asset.premiumShares, asset.premiumOffset, asset.realizedPremium) = _validateApplyPremiumDelta(
       drawnIndex,
@@ -689,6 +708,13 @@ contract Hub is IHub, AccessManaged {
       spoke.realizedPremium,
       premium,
       premiumAmount
+    );
+
+    uint24 riskPremiumCap = spoke.riskPremiumCap;
+    require(
+      riskPremiumCap == MAX_ALLOWED_RISK_PREMIUM_CAP ||
+        spoke.premiumShares <= spoke.drawnShares.percentMulUp(riskPremiumCap),
+      InvalidPremiumChange()
     );
   }
 
