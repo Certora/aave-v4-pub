@@ -16,6 +16,16 @@ methods {
     function _.balanceOf(address account) external => 
         tokenBalanceOf(calledContract, account) expect uint256;
 
+    function _.permit(
+    address owner,
+    address spender,
+    uint256 value,
+    uint256 deadline,
+    uint8 v,
+    bytes32 r,
+    bytes32 s
+  ) external => NONDET ALL;
+
 }
 
 

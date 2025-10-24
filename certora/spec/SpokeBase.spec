@@ -1,0 +1,118 @@
+import "./symbolicRepresentation/Math_CVL.spec";
+
+using WadRayMathWrapper as wadRayMath;
+
+/***
+
+Base definitions used in all of Spoke spec files
+
+Here we have only safe assumptions, safe summarization that are either proved in math.spec or a nondet summary
+
+***/
+methods {
+    function Math.mulDiv(uint256 x, uint256 y, uint256 denominator) internal  returns (uint256) => mulDivDownCVL(x,y,denominator);
+    function Math.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding
+  ) internal returns (uint256) => mulDivCheckRounding(x,y,denominator,rounding);
+
+    function WadRayMathWrapper.RAY() external returns (uint256) envfree;
+    function WadRayMathWrapper.WAD() external returns (uint256) envfree;
+    function WadRayMathWrapper.PERCENTAGE_FACTOR() external returns (uint256) envfree;
+
+    function WadRayMath.rayMulDown(uint256 a, uint256 b) internal returns (uint256) => 
+        mulDivRayDownCVL(a,b);
+    
+    function WadRayMathWrapper.rayMulUp(uint256 a, uint256 b) internal returns (uint256) => 
+        mulDivRayUpCVL(a,b);   
+
+    function WadRayMath.rayMulUp(uint256 a, uint256 b) internal returns (uint256) => 
+        mulDivRayUpCVL(a,b);
+
+    function WadRayMath.wadDivUp(uint256 a, uint256 b) internal returns (uint256) => 
+        mulDivUpCVL(a,wadRayMath.WAD(),b);
+    
+    function PercentageMath.percentMulDown(uint256 percentage, uint256 value) internal returns (uint256) => 
+        mulDivDownCVL(value,percentage,wadRayMath.PERCENTAGE_FACTOR());
+    
+    function PercentageMath.percentMulUp(uint256 percentage, uint256 value) internal returns (uint256) => 
+        mulDivUpCVL(value,percentage,wadRayMath.PERCENTAGE_FACTOR());
+
+    
+    
+
+    function _.sortByKey(KeyValueList.List memory array) internal
+        => CVL_sort(array) expect void;
+
+    function _._hashTypedData(bytes32 structHash) internal => NONDET;
+
+
+    // test if sanity helps 
+    /*function Spoke._calculateAndPotentiallyRefreshUserAccountData(
+    address user,
+    bool refreshConfig
+  ) internal returns (ISpoke.UserAccountData memory) => my_nondet()   ; */
+    function _.getReservePrice(uint256 reserveId) external with (env e)=> symbolicPrice(reserveId, e.block.timestamp) expect uint256;
+
+    function MathUtils.uncheckedExp(uint256 a, uint256 b) internal returns (uint256) => limitedExp(a,b);
+
+    function _.consumeScheduledOp(address caller, bytes data) external => NONDET ALL;
+    function _.setReserveSource(uint256 reserveId, address source) external => NONDET ALL;
+}
+
+
+function my_nondet() returns (ISpoke.UserAccountData) {
+    ISpoke.UserAccountData userAccountData;
+    return userAccountData;
+}
+
+function CVL_sort(KeyValueList.List array) {
+    if (array._inner.length > 1) {
+        require(array._inner[0] < array._inner[1]);
+    }
+    if (array._inner.length > 2) {
+        require(array._inner[1] < array._inner[2]);
+    }
+    if (array._inner.length > 3) {
+        require(array._inner[2] < array._inner[3]);
+    }
+}
+
+
+//deterministic non-zero value for each reserveId and timestamp
+ghost symbolicPrice(uint256 /*reserveId*/, uint256 /*timestamp*/) returns uint256 {
+    axiom forall uint256 reserveId. forall uint256 timestamp. symbolicPrice(reserveId,timestamp) > 0;
+}
+
+function mulDivCheckRounding(uint256 x, uint256 y, uint256 z, Math.Rounding rounding) returns (uint256){
+    if (rounding == Math.Rounding.Floor) {
+        return mulDivDownCVL(x,y,z);
+    }
+    else if (rounding == Math.Rounding.Ceil) {
+        return mulDivUpCVL(x,y,z);
+    }
+    else {
+        assert false; 
+    }
+    return 0;
+}
+
+function limitedExp(uint256 a, uint256 b) returns (uint256){
+    // todo prove that b is always the decimals of an asset
+    assert a == 10;
+    require ( b == 1 || b == 2 || b == 6 || b == 128, "limiting exp, used as decimals only");
+    if (b == 1) {
+        return 10;
+    }
+    else if (b == 2) {
+        return 100;
+    }
+    else if (b == 6) {
+        return 1000000;
+    }
+    else if (b == 128) {
+        return require_uint256(10 ^ 128);
+    }
+    else {
+        require false;
+        return 0;
+    }
+}
