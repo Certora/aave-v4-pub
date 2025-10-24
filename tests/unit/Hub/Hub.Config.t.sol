@@ -28,6 +28,10 @@ contract HubConfigTest is HubBase {
     new Hub(address(0));
   }
 
+  function test_hub_max_riskPremium() public {
+    assertEq(Constants.MAX_ALLOWED_RISK_PREMIUM_CAP, hub1.MAX_ALLOWED_RISK_PREMIUM_CAP());
+  }
+
   function test_addSpoke_fuzz_revertsWith_AssetNotListed(
     uint256 assetId,
     IHub.SpokeConfig calldata spokeConfig
@@ -284,10 +288,13 @@ contract HubConfigTest is HubBase {
       (uint32, uint32, uint32, uint32)
     );
 
+    // feeReceiver risk premium cap defaults to 0
     IHub.SpokeConfig memory expectedSpokeConfig = IHub.SpokeConfig({
+      active: true,
+      paused: false,
       addCap: Constants.MAX_ALLOWED_SPOKE_CAP,
       drawCap: 0,
-      active: true
+      riskPremiumCap: 0
     });
 
     vm.expectEmit(address(hub1));
@@ -429,7 +436,13 @@ contract HubConfigTest is HubBase {
       emit IHub.UpdateSpokeConfig(
         assetId,
         newConfig.feeReceiver,
-        IHub.SpokeConfig({addCap: Constants.MAX_ALLOWED_SPOKE_CAP, drawCap: 0, active: true})
+        IHub.SpokeConfig({
+          active: true,
+          paused: false,
+          addCap: Constants.MAX_ALLOWED_SPOKE_CAP,
+          drawCap: 0,
+          riskPremiumCap: 0
+        })
       );
     } else {
       newConfig.feeReceiver = _getFeeReceiver(hub1, assetId);
