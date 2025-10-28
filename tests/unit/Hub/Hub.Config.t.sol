@@ -36,7 +36,7 @@ contract HubConfigTest is HubBase {
     uint256 assetId,
     IHub.SpokeConfig calldata spokeConfig
   ) public {
-    assetId = bound(assetId, hub1.getAssetCount(), type(uint256).max);
+    assetId = bound(assetId, hub1.getAssetCount(), UINT256_MAX);
     vm.expectRevert(IHub.AssetNotListed.selector, address(hub1));
     Utils.addSpoke(hub1, ADMIN, assetId, address(spoke1), spokeConfig);
   }
@@ -306,7 +306,7 @@ contract HubConfigTest is HubBase {
     vm.expectEmit(address(hub1));
     emit IHub.UpdateAssetConfig(expectedAssetId, expectedConfig);
     vm.expectEmit(address(hub1));
-    emit IHub.UpdateAsset(expectedAssetId, WadRayMath.RAY, baseVariableBorrowRate.bpsToRay());
+    emit IHub.UpdateAsset(expectedAssetId, WadRayMath.RAY, baseVariableBorrowRate.bpsToRay(), 0);
 
     uint256 assetId = Utils.addAsset(
       hub1,
@@ -429,10 +429,18 @@ contract HubConfigTest is HubBase {
     IHub.SpokeConfig memory oldFeeReceiverConfig = hub1.getSpokeConfig(assetId, oldFeeReceiver);
 
     // new spoke is added only if it is different from the old one and not yet listed
-    if (
-      newConfig.feeReceiver != _getFeeReceiver(hub1, assetId) &&
-      !hub1.isSpokeListed(assetId, newConfig.feeReceiver)
-    ) {
+    bool isNewFeeReceiver = newConfig.feeReceiver != _getFeeReceiver(hub1, assetId);
+    if (isNewFeeReceiver && !hub1.isSpokeListed(assetId, newConfig.feeReceiver)) {
+      if (_calcUnrealizedFees(hub1, assetId) > 0) {
+        uint256 accruedFees = hub1.getAssetAccruedFees(assetId);
+        vm.expectEmit(address(hub1));
+        emit IHub.MintFeeShares(
+          assetId,
+          _getFeeReceiver(hub1, assetId),
+          hub1.previewAddByAssets(assetId, accruedFees),
+          accruedFees
+        );
+      }
       vm.expectEmit(address(hub1));
       emit IHub.UpdateSpokeConfig(
         assetId,
@@ -473,7 +481,8 @@ contract HubConfigTest is HubBase {
         drawn: drawn,
         deficit: 0,
         swept: 0
-      })
+      }),
+      isNewFeeReceiver ? 0 : hub1.getAssetAccruedFees(assetId)
     );
     vm.expectEmit(address(hub1));
     emit IHub.UpdateAssetConfig(assetId, newConfig);
@@ -528,16 +537,22 @@ contract HubConfigTest is HubBase {
     _addLiquidity(assetId, amount);
     _drawLiquidity(assetId, amount, true);
 
+    skip(365 days);
+
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
     address oldFeeReceiver = config.feeReceiver;
     config.feeReceiver = makeAddr('newFeeReceiver');
 
-    uint256 feesShares = hub1.getSpokeAddedShares(assetId, oldFeeReceiver);
-    assertTrue(feesShares > 0, 'no fees');
+    uint256 expectedFeeReceiverAddedAssets = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
+    assertTrue(expectedFeeReceiverAddedAssets > 0, 'no fees');
 
     test_updateAssetConfig_fuzz(assetId, config);
 
-    assertEq(hub1.getSpokeAddedShares(assetId, oldFeeReceiver), feesShares);
+    assertApproxEqAbs(
+      hub1.getSpokeAddedAssets(assetId, oldFeeReceiver),
+      expectedFeeReceiverAddedAssets,
+      2
+    );
     assertEq(hub1.getSpokeAddedShares(assetId, config.feeReceiver), 0);
 
     IHub.SpokeConfig memory spokeConfig = hub1.getSpokeConfig(assetId, oldFeeReceiver);
@@ -585,6 +600,41 @@ contract HubConfigTest is HubBase {
     );
   }
 
+  /// Updates the fee receiver while the current fee receiver is not active
+  function test_updateAssetConfig_NewFeeReceiver_revertsWith_SpokeNotActive_noFees() public {
+    uint256 assetId = daiAssetId;
+
+    uint256 amount = 1000e18;
+    _addLiquidity(assetId, amount);
+    _drawLiquidity(assetId, amount, true);
+    skip(365 days);
+
+    updateSpokeActive(hub1, assetId, _getFeeReceiver(hub1, assetId), false);
+    IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
+    config.feeReceiver = makeAddr('newFeeReceiver');
+
+    vm.expectRevert(IHub.SpokeNotActive.selector, address(hub1));
+    Utils.updateAssetConfig(hub1, ADMIN, assetId, config, new bytes(0));
+  }
+
+  /// Updates the fee receiver while the current fee receiver is not active and no fees are accrued
+  function test_updateAssetConfig_NewFeeReceiver_noFees() public {
+    uint256 assetId = daiAssetId;
+
+    uint256 amount = 1000e18;
+    _addLiquidity(assetId, amount);
+    _drawLiquidity(assetId, amount, true);
+    skip(365 days);
+
+    Utils.mintFeeShares(hub1, assetId, ADMIN);
+
+    updateSpokeActive(hub1, assetId, _getFeeReceiver(hub1, assetId), false);
+    IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
+    config.feeReceiver = makeAddr('newFeeReceiver');
+
+    Utils.updateAssetConfig(hub1, ADMIN, assetId, config, new bytes(0));
+  }
+
   /// Updates the fee receiver by reusing a previously assigned spoke, with no impact on accrued fees
   function test_updateAssetConfig_fuzz_ReuseFeeReceiver_revertsWith_SpokeAlreadyListed(
     uint256 assetId
@@ -596,6 +646,7 @@ contract HubConfigTest is HubBase {
     uint256 oldFees = hub1.getSpokeAddedShares(assetId, oldFeeReceiver);
 
     skip(365 days);
+    Utils.mintFeeShares(hub1, assetId, ADMIN);
 
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
     address newFeeReceiver = config.feeReceiver;
@@ -664,13 +715,14 @@ contract HubConfigTest is HubBase {
     _drawLiquidity(assetId, amount, true);
 
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
-    uint256 feeShares = hub1.getSpokeAddedShares(assetId, config.feeReceiver);
-    assertTrue(feeShares > 0, 'no fees');
+    uint256 expectedFeeReceiverAddedAssets = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
+    assertTrue(expectedFeeReceiverAddedAssets > 0, 'no fees');
 
     config.liquidityFee = liquidityFee;
     test_updateAssetConfig_fuzz(assetId, config);
 
-    assertEq(hub1.getSpokeAddedShares(assetId, config.feeReceiver), feeShares);
+    assertEq(_calcUnrealizedFees(hub1, assetId), 0);
+    assertEq(_getExpectedFeeReceiverAddedAssets(hub1, assetId), expectedFeeReceiverAddedAssets);
   }
 
   /// No fees accrued whe updating liquidity fee from zero to non-zero
@@ -706,11 +758,11 @@ contract HubConfigTest is HubBase {
     _addLiquidity(assetId, amount);
     _drawLiquidity(assetId, amount, true);
 
-    uint256 fees = hub1.getSpokeAddedShares(assetId, address(treasurySpoke));
-    assertTrue(fees > 0, 'no fees');
+    uint256 expectedFeeReceiverAddedAssets = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
+    assertTrue(expectedFeeReceiverAddedAssets > 0, 'no fees');
 
     skip(365 days);
-    uint256 futureFees = hub1.getSpokeAddedShares(assetId, address(treasurySpoke));
+    uint256 futureFees = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
     rewind(365 days);
 
     AssetInterestRateStrategy newIrStrategy = new AssetInterestRateStrategy(address(hub1));

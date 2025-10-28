@@ -341,7 +341,9 @@ contract SpokeLiquidationCallBaseTest is LiquidationLogicBaseTest {
     }
 
     if (totalCollateralValue != 0) {
-      newAvgCollateralFactor = newAvgCollateralFactor.wadDivDown(totalCollateralValue).fromBpsDown();
+      newAvgCollateralFactor = newAvgCollateralFactor
+        .wadDivDown(totalCollateralValue)
+        .fromBpsDown();
     }
     list.sortByKey();
 
@@ -681,7 +683,7 @@ contract SpokeLiquidationCallBaseTest is LiquidationLogicBaseTest {
     if (accountsInfoAfter.userAccountData.totalDebtValue == 0) {
       assertEq(
         accountsInfoAfter.userAccountData.healthFactor,
-        type(uint256).max,
+        UINT256_MAX,
         'health factor should be max if all debt is liquidated'
       );
     } else if (liquidationMetadata.debtToLiquidate == liquidationMetadata.debtToTarget) {
@@ -1277,7 +1279,6 @@ contract SpokeLiquidationCallBaseTest is LiquidationLogicBaseTest {
       params.debtToCover,
       params.receiveShares
     );
-
     Vm.Log[] memory logs = vm.getRecordedLogs();
 
     AccountsInfo memory accountsInfoAfter = _getAccountsInfo(params);
