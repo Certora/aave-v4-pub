@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {EnumerableSet} from 'src/dependencies/openzeppelin/EnumerableSet.sol';
 import {AccessManaged} from 'src/dependencies/openzeppelin/AccessManaged.sol';
 import {SafeCast} from 'src/dependencies/openzeppelin/SafeCast.sol';
-import {SafeERC20, IERC20} from 'src/dependencies/openzeppelin/SafeERC20.sol';
+import {SafeTransferLib} from 'src/dependencies/solady/SafeTransferLib.sol';
 import {MathUtils} from 'src/libraries/math/MathUtils.sol';
 import {PercentageMath} from 'src/libraries/math/PercentageMath.sol';
 import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
@@ -19,7 +19,7 @@ import {IHubBase, IHub} from 'src/hub/interfaces/IHub.sol';
 /// @notice A liquidity hub that manages assets and spokes.
 contract Hub is IHub, AccessManaged {
   using EnumerableSet for EnumerableSet.AddressSet;
-  using SafeERC20 for IERC20;
+  using SafeTransferLib for address;
   using SafeCast for uint256;
   using WadRayMath for uint256;
   using SharesMath for uint256;
@@ -217,7 +217,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransferFrom(from, address(this), amount);
+    asset.underlying.safeTransferFrom(from, address(this), amount);
 
     emit Add(assetId, msg.sender, shares, amount);
 
@@ -242,7 +242,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransfer(to, amount);
+    asset.underlying.safeTransfer(to, amount);
 
     emit Remove(assetId, msg.sender, shares, amount);
 
@@ -267,7 +267,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransfer(to, amount);
+    asset.underlying.safeTransfer(to, amount);
 
     emit Draw(assetId, msg.sender, drawnShares, amount);
 
@@ -297,7 +297,7 @@ contract Hub is IHub, AccessManaged {
 
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransferFrom(from, address(this), totalAmount);
+    asset.underlying.safeTransferFrom(from, address(this), totalAmount);
 
     emit Restore(assetId, msg.sender, drawnShares, premiumDelta, drawnAmount, premiumAmount);
 
@@ -419,7 +419,7 @@ contract Hub is IHub, AccessManaged {
     asset.swept += amount.toUint120();
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransfer(msg.sender, amount);
+    asset.underlying.safeTransfer(msg.sender, amount);
 
     emit Sweep(assetId, msg.sender, amount);
   }
@@ -436,7 +436,7 @@ contract Hub is IHub, AccessManaged {
     asset.swept -= amount.toUint120();
     asset.updateDrawnRate(assetId);
 
-    IERC20(asset.underlying).safeTransferFrom(msg.sender, address(this), amount);
+    asset.underlying.safeTransferFrom(msg.sender, address(this), amount);
 
     emit Reclaim(assetId, msg.sender, amount);
   }
