@@ -143,7 +143,7 @@ rule viewFunctionsIntegrity(uint256 assetId, method f) filtered { f-> f.isView &
                                 f.selector != sig:toSharesUp(uint256,uint256,uint256).selector &&
                                 f.selector != sig:toAssetsUp(uint256,uint256,uint256).selector &&
                                 f.selector != sig:getAssetSuppliedAmountUp(uint256).selector &&
-                                f.selector != sig:unrealizedFeeShares(uint256 ).selector &&
+                                f.selector != sig:getUnrealizedFeeAmount(uint256).selector &&
                                 f.selector != sig:MAX_ALLOWED_UNDERLYING_DECIMALS().selector &&
                                 f.selector != sig:MAX_ALLOWED_SPOKE_CAP().selector &&
                                 f.selector != sig:getAssetUnderlyingAndDecimals(uint256).selector 
@@ -270,6 +270,9 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
     }
     else if (f.selector == sig:getSpokeDeficit(uint256,address).selector) {
         return getSpokeDeficit(e, args);
+    }
+    else if (f.selector == sig:getAssetFeeAmount(uint256).selector) {
+        return getAssetFeeAmount(e, args);
     }
     else
     {

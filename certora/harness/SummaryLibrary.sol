@@ -7,10 +7,11 @@ library SummaryLibrary {
   using AssetLogic for IHub.Asset;
   using SharesMath for uint256;
 
-  function getFeeShares(
+  function getUnrealizedFeeAmount(
     IHub.Asset storage asset,
-    uint256 indexDelta
+    uint256 index
   ) external view returns (uint256) {
+    uint256 indexDelta = index - asset.drawnIndex;
     uint256 liquidityFee = asset.liquidityFee;
     if (indexDelta == 0 || liquidityFee == 0) {
       return 0;

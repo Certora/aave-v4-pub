@@ -13,6 +13,11 @@ methods {
         => transferCVL(calledContract, e.msg.sender, to, amount) expect bool;
     function _.transferFrom(address from, address to, uint256 amount) external with (env e) 
         => transferFromCVL(calledContract, e.msg.sender, from, to, amount) expect bool;
+
+    function _.safeTransfer(address token, address to, uint256 amount) internal with (env e)
+        => safeTransferCVL(token, executingContract, to, amount) expect bool;
+    function _.safeTransferFrom(address token, address from, address to, uint256 amount) internal with (env e)
+        => safeTransferFromCVL(token, executingContract, from, to, amount) expect bool;
     function _.balanceOf(address account) external => 
         tokenBalanceOf(calledContract, account) expect uint256;
 
@@ -71,5 +76,24 @@ function transferCVL(address token, address from, address to, uint256 amount) re
     } 
     balanceByToken[token][from] = assert_uint256(balanceByToken[token][from] - amount);
     balanceByToken[token][to] = require_uint256(balanceByToken[token][to] + amount);  // We neglect overflows.
+    return true;
+}
+
+function safeTransferCVL(address token, address from, address to, uint256 amount) returns bool {
+    if (balanceByToken[token][from] < amount) {
+             revert();
+    }
+    balanceByToken[token][from] = require_uint256(balanceByToken[token][from] - amount);
+    balanceByToken[token][to] = require_uint256(balanceByToken[token][to] + amount);  // We neglect overflows.
+
+    return true;
+}
+
+function safeTransferFromCVL(address token, address spender, address from, address to, uint256 amount) returns bool {
+    bool success = safeTransferCVL(token, from, to, amount);
+    if (allowanceByToken[token][from][spender] < amount){
+             revert();
+    }
+    allowanceByToken[token][from][spender] = require_uint256(allowanceByToken[token][from][spender] - amount);
     return true;
 }

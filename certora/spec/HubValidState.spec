@@ -24,17 +24,14 @@ methods {
     ) internal => NONDET;
 
     //rules concerning getFeeShares are in HubAccrueIntegrity.spec
-    function AssetLogic.getFeeShares(
-        IHub.Asset storage asset,
-        uint256 indexDelta
-    ) internal returns (uint256) => ALWAYS(0);
+
 
     //assume a given single drawnIndex
     //rules concerning getDrawnIndex are in HubAccrueIntegrity.spec
     function AssetLogic.getDrawnIndex(IHub.Asset storage   asset) internal returns (uint256) => cachedIndex;
 
     //rules concerning accrue are in HubAccrueIntegrity.spec
-    function AssetLogic.accrue(IHub.Asset storage asset, mapping(uint256 => mapping(address => IHub.SpokeData)) storage spokes, uint256 assetId) internal => accrueCalled();
+    function AssetLogic.accrue(IHub.Asset storage asset) internal => accrueCalled();
 
 }
 

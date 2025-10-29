@@ -19,7 +19,7 @@ methods {
     
     function AssetLogic.getDrawnIndex(IHub.Asset storage asset) internal returns (uint256)  with (env e) => symbolicDrawnIndex(e.block.timestamp);
 
-    // proved in HubAccrueIntegrityUnrealizedFee.spec that this is the max value of unrealizedFeeShares
+    // proved in HubAccrueIntegrityUnrealizedFee.spec that this is the max value of getUnrealizedFeeAmount
     function PercentageMath.percentMulDown(uint256 value, uint256 percentage) internal  returns (uint256) => 
     identity(value);
 
@@ -36,12 +36,12 @@ ghost symbolicDrawnIndex(uint256) returns uint256;
 @title Prove that accrue can not decrease the share rate
 
 Given e1, a timestamp last accrue, we prove that the share rate is the same or increasing at e2
-We prove this for the maximum value of unrealizedFeeShares, as proved in HubAccrueIntegrityUnrealizedFee.spec
-Therefore, it holds for any smaller value of unrealizedFeeShares, as shares_e2 will be smaller
+We prove this for the maximum value of getUnrealizedFeeAmount, as proved in HubAccrueIntegrityUnrealizedFee.spec
+Therefore, it holds for any smaller value of getUnrealizedFeeAmount, as shares_e2 will be smaller
 **/
 
 
-rule unrealizedFeeSharesSupplyRate(uint256 assetId){
+rule accrueSupplyRate(uint256 assetId){
     env e1; env e2; 
     uint256 oneM = 1000000;
     require e1.block.timestamp < e2.block.timestamp;
@@ -58,7 +58,6 @@ rule unrealizedFeeSharesSupplyRate(uint256 assetId){
     require  symbolicDrawnIndex(e1.block.timestamp) <= symbolicDrawnIndex(e2.block.timestamp);
     //based on requireInvariant baseDebtIndexMin(assetId); 
     require  symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
-    assert unrealizedFeeShares(e1,assetId) == 0 ;
 
 
     mathint assets_e1 = getAddedAssets(e1, assetId);
@@ -66,27 +65,20 @@ rule unrealizedFeeSharesSupplyRate(uint256 assetId){
     //requireInvariant totalAssetsVsShares(assetId,e);
     require assets_e1 >= shares_e1 ;
     
-    // get the fee shares and asset at e2
-    uint256 feeShares = unrealizedFeeShares(e2,assetId);
+    //accrue interest
+    accrueInterest(e2, assetId);
     mathint assets_e2 = getAddedAssets(e2, assetId);
-    mathint shares_e2 = hub._assets[assetId].addedShares + feeShares;
-
-    mathint changeInAsset  = assets_e2 - assets_e1;
-    assert previewAddByAssets(e1,assetId, assert_uint256(changeInAsset)) >= feeShares;
+    mathint shares_e2 = hub._assets[assetId].addedShares;
 
     assert (assets_e2 + oneM) * (shares_e1 + oneM) >= (assets_e1 + oneM) * (shares_e2 + oneM); 
     satisfy (assets_e2 + oneM) * (shares_e1 + oneM) > (assets_e1 + oneM) * (shares_e2 + oneM); 
 
 }
 
-
-rule feeShares_time_monotonic(uint256 assetId, uint256 shares){
-    env e1; env e2; env e3;
-    uint256 oneM = 1000000;
+function setup_three_timestamps(uint256 assetId, env e1, env e2, env e3){
     require e1.block.timestamp < e2.block.timestamp && e2.block.timestamp < e3.block.timestamp;
 
     require hub._assets[assetId].lastUpdateTimestamp!=0 && hub._assets[assetId].lastUpdateTimestamp == e1.block.timestamp; 
-
     //correlate the drawn index with the symbolic one, assume increasing and min value as proved in
     // HubAccrueIntegrityDrawnIndex.spec
     require hub._assets[assetId].drawnIndex == symbolicDrawnIndex(e1.block.timestamp);
@@ -95,60 +87,122 @@ rule feeShares_time_monotonic(uint256 assetId, uint256 shares){
     require  symbolicDrawnIndex(e2.block.timestamp) <= symbolicDrawnIndex(e3.block.timestamp);
     //based on requireInvariant baseDebtIndexMin(assetId); 
     require  symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
-    require  symbolicDrawnIndex(e3.block.timestamp) <= wadRayMath.RAY() * 2;
-
-
-    mathint assets_e1 = getAddedAssets(e1, assetId);
-    mathint shares_e1 = hub._assets[assetId].addedShares;
-    //requireInvariant totalAssetsVsShares(assetId,e);
-    require assets_e1 >= shares_e1 ;
-
-    // get the fee shares  at e2
-    uint256 feeShares_e2 = unrealizedFeeShares(e2,assetId);
-
-    
-    // get the fee shares at e3
-    uint256 feeShares_e3 = unrealizedFeeShares(e3,assetId);
-    
-    
-    assert feeShares_e2 <= feeShares_e3;
-
 }
 
-rule shareRate_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
+
+rule shareRate_withoutAccrue_time_monotonic(uint256 assetId){
     env e1; env e2; env e3;
-    uint256 oneM = 1000000;
-    require e1.block.timestamp < e2.block.timestamp && e2.block.timestamp < e3.block.timestamp;
-
-    require hub._assets[assetId].lastUpdateTimestamp!=0 && hub._assets[assetId].lastUpdateTimestamp == e1.block.timestamp; 
-
-    //correlate the drawn index with the symbolic one, assume increasing and min value as proved in
-    // HubAccrueIntegrityDrawnIndex.spec
-    require hub._assets[assetId].drawnIndex == symbolicDrawnIndex(e1.block.timestamp);
-    //based on rule drawnIndex_increasing(assetId);
-    require  symbolicDrawnIndex(e1.block.timestamp) <= symbolicDrawnIndex(e2.block.timestamp);
-    require  symbolicDrawnIndex(e2.block.timestamp) <= symbolicDrawnIndex(e3.block.timestamp);
-    //based on requireInvariant baseDebtIndexMin(assetId); 
-    require  symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
-    require  symbolicDrawnIndex(e3.block.timestamp) <= wadRayMath.RAY() * 2;
-
+    setup_three_timestamps(assetId, e1, e2, e3);
 
     mathint assets_e1 = getAddedAssets(e1, assetId);
-    mathint shares_e1 = hub._assets[assetId].addedShares;
+    mathint shares = hub._assets[assetId].addedShares;
     //requireInvariant totalAssetsVsShares(assetId,e);
-    require assets_e1 >= shares_e1 ;
+    require assets_e1 >= shares;
 
     // get the fee shares and asset at e2
-    uint256 feeShares_e2 = unrealizedFeeShares(e2,assetId);
     mathint assets_e2 = getAddedAssets(e2, assetId);
-    mathint shares_e2 = hub._assets[assetId].addedShares + feeShares_e2;
+    assert shares == hub._assets[assetId].addedShares;
     
-    // get the fee shares and asset at e2
-    uint256 feeShares_e3 = unrealizedFeeShares(e3,assetId);
+    // get the fee shares and asset at e2;
     mathint assets_e3 = getAddedAssets(e3, assetId);
-    require assets_e3 > assets_e2;
-    mathint shares_e3 = hub._assets[assetId].addedShares + feeShares_e3;
+
+    assert assets_e3  >= assets_e2  ;
+}
 
 
-    assert (assets_e3 + oneM) * (shares_e2 + oneM) >= (assets_e2  - 1 + oneM) * (shares_e3 + oneM); 
+rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint assets_e1 = previewRemoveByShares(e1, assetId, shares);
+    mathint assets_e2 = previewRemoveByShares(e2, assetId, shares);
+    mathint assets_e3 = previewRemoveByShares(e3, assetId, shares);
+    
+    assert assets_e3 >= assets_e2 && assets_e2 >= assets_e1 ;
+}
+
+
+rule previewAddByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint shares_e1 = previewAddByAssets(e1, assetId, assets);
+    mathint shares_e2 = previewAddByAssets(e2, assetId, assets);
+    mathint shares_e3 = previewAddByAssets(e3, assetId, assets);
+    
+    assert shares_e3 <= shares_e2 && shares_e2 <= shares_e1 ;
+}
+
+
+rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint assets_e1 = previewAddByShares(e1, assetId, shares);
+    mathint assets_e2 = previewAddByShares(e2, assetId, shares);
+    mathint assets_e3 = previewAddByShares(e3, assetId, shares);
+    
+    assert assets_e3 >= assets_e2 && assets_e2 >= assets_e1 ;
+}
+
+
+rule previewRemoveByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint shares_e1 = previewRemoveByAssets(e1, assetId, assets);
+    mathint shares_e2 = previewRemoveByAssets(e2, assetId, assets);
+    mathint shares_e3 = previewRemoveByAssets(e3, assetId, assets);
+    
+    assert shares_e3 <= shares_e2 && shares_e2 <= shares_e1 ;
+}
+
+
+
+rule previewDrawByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint shares_e1 = previewDrawByAssets(e1, assetId, assets);
+    mathint shares_e2 = previewDrawByAssets(e2, assetId, assets);
+    mathint shares_e3 = previewDrawByAssets(e3, assetId, assets);
+    
+    assert shares_e3 <= shares_e2 && shares_e2 <= shares_e1 ;
+}
+
+
+rule previewDrawByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint assets_e1 = previewDrawByShares(e1, assetId, shares);
+    mathint assets_e2 = previewDrawByShares(e2, assetId, shares);
+    mathint assets_e3 = previewDrawByShares(e3, assetId, shares);
+    
+    assert assets_e3 >= assets_e2 && assets_e2 >= assets_e1 ;
+}
+
+
+
+rule previewRestoreByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint shares_e1 = previewRestoreByAssets(e1, assetId, assets);
+    mathint shares_e2 = previewRestoreByAssets(e2, assetId, assets);
+    mathint shares_e3 = previewRestoreByAssets(e3, assetId, assets);
+    
+    assert shares_e3 <= shares_e2 && shares_e2 <= shares_e1 ;
+}
+
+
+rule previewRestoreByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+
+    mathint assets_e1 = previewRestoreByShares(e1, assetId, shares);
+    mathint assets_e2 = previewRestoreByShares(e2, assetId, shares);
+    mathint assets_e3 = previewRestoreByShares(e3, assetId, shares);
+    
+    assert assets_e3 >= assets_e2 && assets_e2 >= assets_e1 ;
 }
