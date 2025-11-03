@@ -7,7 +7,7 @@ library SummaryLibrary {
   using AssetLogic for IHub.Asset;
   using SharesMath for uint256;
 
-  function getUnrealizedFeeAmount(
+  function getUnrealizedFees(
     IHub.Asset storage asset,
     uint256 index
   ) external view returns (uint256) {

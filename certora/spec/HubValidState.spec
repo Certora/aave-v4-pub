@@ -86,81 +86,81 @@ function accrueCalled() {
 
 /************ Hooks  ************/
 /// Update sumLiquidity[t] on update to availableLiquidity of assetId for token t
-hook Sstore _assets[KEY uint256 assetId].liquidity uint128 new_value (uint128 old_value) {
+hook Sstore _assets[KEY uint256 assetId].liquidity uint120 new_value (uint120 old_value) {
     sumLiquidity[hub._assets[assetId].underlying] = sumLiquidity[hub._assets[assetId].underlying] + new_value - old_value;
 }
 
-hook Sstore _assets[KEY uint256 assetId].drawnIndex uint128 new_value (uint128 old_value) {
+hook Sstore _assets[KEY uint256 assetId].drawnIndex uint120 new_value (uint120 old_value) {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value _assets[KEY uint256 assetId].drawnIndex  {
+hook Sload uint120 value _assets[KEY uint256 assetId].drawnIndex  {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
-hook Sstore _assets[KEY uint256 assetId].addedShares uint128 new_value (uint128 old_value) {
-    unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
-}
-
-hook Sload uint128 value _assets[KEY uint256 assetId].addedShares  {
+hook Sstore _assets[KEY uint256 assetId].addedShares uint120 new_value (uint120 old_value) {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].drawnShares uint128 new_value (uint128 old_value) {
+hook Sload uint120 value _assets[KEY uint256 assetId].addedShares  {
+    unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
+}
+
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].drawnShares uint120 new_value (uint120 old_value) {
     spokeBaseDrawnPerAssetMirror[assetId][spoke] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value hub._spokes[KEY uint256 assetId][KEY address spoke].drawnShares {
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].drawnShares {
     require spokeBaseDrawnPerAssetMirror[assetId][spoke] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].addedShares uint128 new_value (uint128 old_value) {
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].addedShares uint120 new_value (uint120 old_value) {
     spokeSupplyPerAssetMirror[assetId][spoke] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value hub._spokes[KEY uint256 assetId][KEY address spoke].addedShares {
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].addedShares {
     require spokeSupplyPerAssetMirror[assetId][spoke] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].premiumShares uint128 new_value (uint128 old_value) {
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].premiumShares uint120 new_value (uint120 old_value) {
     spokePremiumDrawnSharesPerAssetMirror[assetId][spoke] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value hub._spokes[KEY uint256 assetId][KEY address spoke].premiumShares {
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].premiumShares {
     require spokePremiumDrawnSharesPerAssetMirror[assetId][spoke] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].premiumOffset uint128 new_value (uint128 old_value) {
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].premiumOffset uint120 new_value (uint120 old_value) {
     spokePremiumOffsetPerAssetMirror[assetId][spoke] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value hub._spokes[KEY uint256 assetId][KEY address spoke].premiumOffset {
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].premiumOffset {
     require spokePremiumOffsetPerAssetMirror[assetId][spoke] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].realizedPremium uint128 new_value (uint128 old_value) {
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].realizedPremium uint120 new_value (uint120 old_value) {
     spokeRealizedPremiumPerAssetMirror[assetId][spoke] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value hub._spokes[KEY uint256 assetId][KEY address spoke].realizedPremium {
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].realizedPremium {
     require spokeRealizedPremiumPerAssetMirror[assetId][spoke] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].deficit uint128 new_value (uint128 old_value) {
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].deficit uint120 new_value (uint120 old_value) {
     spokeDeficitPerAssetMirror[assetId][spoke] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint128 value hub._spokes[KEY uint256 assetId][KEY address spoke].deficit {
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].deficit {
     require spokeDeficitPerAssetMirror[assetId][spoke] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }

@@ -19,7 +19,7 @@ methods {
     
     function AssetLogic.getDrawnIndex(IHub.Asset storage asset) internal returns (uint256)  with (env e) => symbolicDrawnIndex(e.block.timestamp);
 
-    // proved in HubAccrueIntegrityUnrealizedFee.spec that this is the max value of getUnrealizedFeeAmount
+    // proved in HubAccrueIntegrityUnrealizedFee.spec that this is the max value of getUnrealizedFees
     function PercentageMath.percentMulDown(uint256 value, uint256 percentage) internal  returns (uint256) => 
     identity(value);
 
@@ -36,8 +36,8 @@ ghost symbolicDrawnIndex(uint256) returns uint256;
 @title Prove that accrue can not decrease the share rate
 
 Given e1, a timestamp last accrue, we prove that the share rate is the same or increasing at e2
-We prove this for the maximum value of getUnrealizedFeeAmount, as proved in HubAccrueIntegrityUnrealizedFee.spec
-Therefore, it holds for any smaller value of getUnrealizedFeeAmount, as shares_e2 will be smaller
+We prove this for the maximum value of getUnrealizedFees, as proved in HubAccrueIntegrityUnrealizedFee.spec
+Therefore, it holds for any smaller value of getUnrealizedFees, as shares_e2 will be smaller
 **/
 
 

@@ -22,7 +22,6 @@ methods {
     ) internal => NONDET;
 
     function _validateRemove(
-        IHub.Asset storage asset,
         IHub.SpokeData storage spoke,
         uint256 amount,
         address to

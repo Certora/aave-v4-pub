@@ -8,10 +8,10 @@ Advance over-approximations summarization used in additivity rules.
 
 methods {
 
-    function AssetLogic.getUnrealizedFeeAmount(
+    function AssetLogic.getUnrealizedFees(
         IHub.Asset storage asset,
         uint256 index
-    ) internal returns (uint256) => SummaryLibrary.getUnrealizedFeeAmount(asset, index);
+    ) internal returns (uint256) => SummaryLibrary.getUnrealizedFees(asset, index);
 
     function AssetLogic.getDrawnIndex(IHub.Asset storage asset) internal returns (uint256) => SummaryLibrary.getDrawnIndex(asset);
 
