@@ -54,35 +54,35 @@ function checkAndSetUser(address user) {
     assumeUser = user;
 }
 
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint120 newValue (uint120 oldValue) {
     checkAndSetUser(user);
 }   
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
     checkAndSetUser(user);
 }
 
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint120 newValue (uint120 oldValue) {
     checkAndSetUser(user);
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
     checkAndSetUser(user);
 }               
 
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumShares uint120 newValue (uint120 oldValue) {
     checkAndSetUser(user);
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].premiumShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].premiumShares {
     checkAndSetUser(user);
 }   
 
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset uint120 newValue (uint120 oldValue) {
     checkAndSetUser(user);
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset {
     checkAndSetUser(user);
 }
 

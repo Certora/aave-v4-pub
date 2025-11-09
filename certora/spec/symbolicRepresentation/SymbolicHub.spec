@@ -2,12 +2,13 @@ methods {
 
     function _.previewRemoveByShares(uint256 assetId, uint256 shares) external with (env e) => previewRemoveBySharesCVL(assetId, shares, e) expect uint256;
 
+    function _.previewRemoveByAssets(uint256 assetId, uint256 assets) external with (env e) => previewRemoveByAssetsCVL(assetId, assets, e) expect uint256;
 
     function _.previewDrawByShares(uint256 assetId, uint256 shares) external with (env e) => previewDrawBySharesCVL(assetId, shares, e) expect uint256;
 
     function _.previewRestoreByShares(uint256 assetId, uint256 shares) external with (env e) => previewRestoreBySharesCVL(assetId, shares, e) expect uint256;
 
-
+    function _.getAssetDrawnIndex(uint256 assetId) external with (env e) => getAssetDrawnIndexCVL(assetId, e) expect uint256;
 
 
 // Supply Operations
@@ -25,14 +26,15 @@ methods {
 //refresh premium
     function _.refreshPremium(uint256 assetId, IHubBase.PremiumDelta premiumDelta) external => HAVOC_ECF;
 
-
+// Pay Fee Shares Operations
+    function _.payFeeShares(uint256 assetId, uint256 shares) external => NONDET;
 }
 
 
 
-persistent ghost uint256 miniRAY {
-    axiom miniRAY == 1000000;
-    init_state axiom miniRAY == 1000000;
+persistent ghost uint256 RAY {
+    axiom RAY == 10^27;
+    init_state axiom RAY == 10^27;
     }
 
 // symbolic debt index: for each assetId and block timestamp there is an index
@@ -40,57 +42,62 @@ persistent ghost uint256 miniRAY {
 persistent ghost mapping(uint256 /*assetId */ => mapping(uint256 /* blockTimestamp */ => uint256)) indexOfAssetPerBlock {
     axiom forall uint256 assetId. forall uint256 blockTimestamp. forall uint256 blockTimestamp2.
         blockTimestamp < blockTimestamp2 => indexOfAssetPerBlock[assetId][blockTimestamp] <= indexOfAssetPerBlock[assetId][blockTimestamp2];
-    axiom forall uint256 assetId. forall uint256 blockTimestamp. indexOfAssetPerBlock[assetId][blockTimestamp] >= miniRAY;
+    axiom forall uint256 assetId. forall uint256 blockTimestamp. indexOfAssetPerBlock[assetId][blockTimestamp] >= RAY;
 }
 
 // symbolic assets to share ratio:
 persistent ghost mapping(uint256 /*assetId */ => mapping(uint256 /*blockTimestamp*/ => uint256)) shareToAssetsRatio {
     axiom forall uint256 assetId. forall uint256 blockTimestamp. forall uint256 blockTimestamp2.
         blockTimestamp < blockTimestamp2 => shareToAssetsRatio[assetId][blockTimestamp] <= shareToAssetsRatio[assetId][blockTimestamp2];
-    // al least miniRAY assets per share
-    axiom forall uint256 assetId. forall uint256 blockTimestamp. shareToAssetsRatio[assetId][blockTimestamp] >= miniRAY;
+    // al least RAY assets per share
+    axiom forall uint256 assetId. forall uint256 blockTimestamp. shareToAssetsRatio[assetId][blockTimestamp] >= RAY;
 }
 
 // toAddedSharesDown : assets.toSharesDown(asset.totalAddedAssets(), asset.totalAddedShares());
 function previewAddByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
     uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
-    return require_uint256(((assets * miniRAY) + ratio -1) / ratio);
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
 }
 
 // toAddedAssetsDown : shares.toAssetsDown(asset.totalAddedAssets(), asset.totalAddedShares());
 function previewRemoveBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
     uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
-    return require_uint256(shares * ratio / miniRAY);
+    return require_uint256(shares * ratio / RAY);
 }
 
 // toAddedSharesUp :assets.toSharesUp(asset.totalAddedAssets(), asset.totalAddedShares());
 function previewRemoveByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
     uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
-    return require_uint256(((assets * miniRAY) + ratio -1) / ratio);
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
 }
 
 // toDrawnAssetsDown : shares.rayMulDown(asset.getDrawnIndex())
 function previewDrawBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
     uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
-    return require_uint256((shares * ratio) / miniRAY);
+    return require_uint256((shares * ratio) / RAY);
 }
 
 // toDrawnSharesUp : assets.rayDivUp(asset.getDrawnIndex())
 function previewDrawByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
     uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
-    return require_uint256(((assets * miniRAY) + ratio -1) / ratio);
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
 
 }
 // toDrawnAssetsUp : shares.rayMulUp(asset.getDrawnIndex());
 function previewRestoreBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
     uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
-    return require_uint256(((shares * ratio) + miniRAY - 1) / miniRAY);
+    return require_uint256(((shares * ratio) + RAY - 1) / RAY);
 }
 
 // toDrawnSharesDown : assets.rayDivDown(asset.getDrawnIndex());
 function previewRestoreByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
     uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
-    return require_uint256(((assets * miniRAY) + ratio -1) / ratio);
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+}
+
+// getAssetDrawnIndex: returns the drawn index for an asset at a given block timestamp
+function getAssetDrawnIndexCVL(uint256 assetId, env e) returns (uint256) {
+    return indexOfAssetPerBlock[assetId][e.block.timestamp];
 }
 
 // CVL function summarizations for Hub operations with zero amount checks
@@ -117,4 +124,7 @@ function restoreSummaryCVL(uint256 assetId, uint256 drawnAmount, uint256 premium
     // Return computed restored shares based on drawn amount using existing preview function
     return previewRestoreByAssetsCVL(assetId, drawnAmount, e);
 }
+
+
+
 

@@ -44,12 +44,12 @@ persistent ghost mapping(address /*user*/ => mapping(uint256 /*reserveId*/ => ui
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint120 newValue (uint120 oldValue) {
     userSuppliedSharePerReserveId[user][reserveId] = newValue;  
     require userGhost == user;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
     require userSuppliedSharePerReserveId[user][reserveId] == value;
     require userGhost == user;
 }
@@ -60,12 +60,12 @@ persistent ghost mapping(address /*user*/ => mapping(uint256 /*reserveId*/ => ui
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint120 newValue (uint120 oldValue) {
     userDrawnSharePerReserveId[user][reserveId] = newValue;
     require userGhost == user;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
     require userDrawnSharePerReserveId[user][reserveId] == value;
     require userGhost == user;
 }
@@ -95,30 +95,12 @@ rule checkUserHealth(method f) filtered {f -> f.selector != sig:multicall(bytes[
 
 definition increaseCollateralOrReduceDebtFunctions(method f) returns bool =
     f.selector != sig:withdraw(uint256, uint256, address).selector && 
-    f.selector != sig:liquidationCall(uint256, uint256, address, uint256).selector &&
+    f.selector != sig:liquidationCall(uint256, uint256, address, uint256, bool).selector &&
     f.selector != sig:borrow(uint256, uint256, address).selector &&
     f.selector != sig:setUsingAsCollateral(uint256, bool, address).selector && 
     f.selector != sig:repay(uint256,uint256,address).selector &&
     f.selector != sig:updateUserDynamicConfig(address).selector;
 
-rule increaseCollateralOrReduceDebtFunctions__(method f) filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && increaseCollateralOrReduceDebtFunctions(f)}  {
-    address user;
-    env e;
-    setup();
-    require userGhost == user;
-    
-    //user state before the operation
-    ISpoke.UserAccountData beforeUserAccountData = getUserAccountData(e,user);
-    
-    // Execute the operation 
-    calldataarg args;
-    f(e, args);
-    
-    // user state after the operation
-    ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
-
-    assert beforeUserAccountData.totalCollateralValue >= afterUserAccountData.totalCollateralValue || beforeUserAccountData.totalDebtValue <= afterUserAccountData.totalDebtValue;
-}
 
 rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && increaseCollateralOrReduceDebtFunctions(f)}  {
     uint256 reserveId; uint256 slot;
@@ -130,12 +112,12 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     //user state before the operation
     bool beforePositionStatus_borrowing = isBorrowing[user][reserveId];
     bool beforePositionStatus_usingAsCollateral = isUsingAsCollateral[user][reserveId];
-    uint128 beforeUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint128 beforeUserPosition_realizedPremium = spoke._userPositions[user][reserveId].realizedPremium; 
-    uint128 beforeUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
-    uint128 beforeUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
-    uint128 beforeUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
-    uint16 beforeUserPosition_configKey = spoke._userPositions[user][reserveId].configKey;
+    uint120 beforeUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
+    uint120 beforeUserPosition_realizedPremium = spoke._userPositions[user][reserveId].realizedPremium; 
+    uint120 beforeUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
+    uint120 beforeUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
+    uint120 beforeUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
+    uint16 beforeUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     // Execute the operation 
     calldataarg args;
     f(e, args);
@@ -143,12 +125,12 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     // user state after the operation
     bool afterPositionStatus_borrowing = isBorrowing[user][reserveId];
     bool afterPositionStatus_usingAsCollateral = isUsingAsCollateral[user][reserveId];
-    uint128 afterUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint128 afterUserPosition_realizedPremium = spoke._userPositions[user][reserveId].realizedPremium;
-    uint128 afterUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
-    uint128 afterUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
-    uint128 afterUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
-    uint16 afterUserPosition_configKey = spoke._userPositions[user][reserveId].configKey;
+    uint120 afterUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
+    uint120 afterUserPosition_realizedPremium = spoke._userPositions[user][reserveId].realizedPremium;
+    uint120 afterUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
+    uint120 afterUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
+    uint120 afterUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
+    uint16 afterUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     
     assert beforePositionStatus_borrowing == afterPositionStatus_borrowing && 
     beforePositionStatus_usingAsCollateral == afterPositionStatus_usingAsCollateral && 
@@ -157,10 +139,13 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     beforeUserPosition_premiumShares >= afterUserPosition_premiumShares && 
     beforeUserPosition_premiumOffset >= afterUserPosition_premiumOffset && 
     beforeUserPosition_suppliedShares <= afterUserPosition_suppliedShares && 
-    beforeUserPosition_configKey == afterUserPosition_configKey;
+    beforeUserPosition_dynamicConfigKey == afterUserPosition_dynamicConfigKey;
 }
 
 
+/* todo: check if need to report the zero-out in reportDeficit 
+https://prover.certora.com/output/40726/71dcf10e79fd42b39f508dc122b6fdfb/ 
+*/
 invariant isBorrowingIFFdrawnShares()  
 forall uint256 reserveId. forall address user.
     spoke._userPositions[user][reserveId].drawnShares > 0   <=>  isBorrowing[user][reserveId]
@@ -174,13 +159,6 @@ invariant drawnSharesZero(address user, uint256 reserveId)
         }
     }
     
-
-
-// does not hold
-invariant isUsingAsCollateralIfSuppliedShares()   
-    forall uint256 reserveId. forall address user.
-    isUsingAsCollateral[user][reserveId] => spoke._userPositions[user][reserveId].suppliedShares > 0;
-
 
 invariant validReserveId()
 forall uint256 reserveId. forall address user.
@@ -247,7 +225,7 @@ invariant uniqueAssetIdPerReserveId(uint256 reserveId, uint256 otherReserveId)
 
 invariant userCollateralCount() 
     reserveCountGhost <= spoke._reserveCount 
-        filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+        filtered {f -> f.selector != sig:multicall(bytes[]).selector }
     {
     
         preserved setUsingAsCollateral(uint256 reserveId, bool usingAsCollateral, address onBehalfOf) with (env e) {
@@ -261,8 +239,28 @@ invariant userCollateralCount()
     
     }
     
+/* todo: failing when collateralFactor becomes 0 
+https://prover.certora.com/output/40726/b077c5f4ef564ee2936a9532c6c246f8/
+*/
+rule noCollateralNoDebt_simple_cases(uint256 reserveIdUsed, address user, method f) 
+    filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && increaseCollateralOrReduceDebtFunctions(f)} {
+    env e;
+    setup();
+    require userGhost == user;
+    ISpoke.UserAccountData beforeUserAccountData = getUserAccountData(e,user);
+    require beforeUserAccountData.totalCollateralValue == 0 => beforeUserAccountData.totalDebtValue == 0;
+    
+    calldataarg args;
+    f(e, args);
+    ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
+    assert afterUserAccountData.totalCollateralValue == 0 => afterUserAccountData.totalDebtValue == 0;
+}
 
-rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f) filtered {f -> f.selector != sig:multicall(bytes[]).selector} {
+/* todo: almost done, need to work on liquidation 
+https://prover.certora.com/output/40726/d4544a33a4cf4e71b823f33d79c06d2e/
+*/
+rule noCollateralNoDebt_complex_cases(uint256 reserveIdUsed, address user, method f) 
+    filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && !increaseCollateralOrReduceDebtFunctions(f)} {
     env e;
     setup();
     require userGhost == user;

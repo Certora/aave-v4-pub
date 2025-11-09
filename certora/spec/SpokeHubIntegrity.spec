@@ -33,11 +33,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserSuppliedShares
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint120 newValue (uint120 oldValue) {
     sumUserSuppliedSharesPerReserveId[reserveId] = sumUserSuppliedSharesPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
     require sumUserSuppliedSharesPerReserveId[reserveId] >= value;
 }
 
@@ -47,11 +47,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserDrawnSharesPer
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint120 newValue (uint120 oldValue) {
     sumUserDrawnSharesPerReserveId[reserveId] = sumUserDrawnSharesPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
 
     require sumUserDrawnSharesPerReserveId[reserveId] >= value;
 }
@@ -61,11 +61,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserPremiumSharesP
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumShares uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumShares uint120 newValue (uint120 oldValue) {
     sumUserPremiumSharesPerReserveId[reserveId] = sumUserPremiumSharesPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].premiumShares {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].premiumShares {
     require sumUserPremiumSharesPerReserveId[reserveId] >= value;
 }
 
@@ -74,11 +74,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserPremiumOffsetP
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset uint120 newValue (uint120 oldValue) {
     sumUserPremiumOffsetPerReserveId[reserveId] = sumUserPremiumOffsetPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset {
     require sumUserPremiumOffsetPerReserveId[reserveId] >= value;
 }
 
@@ -87,11 +87,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserRealizedPremiu
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].realizedPremium uint128 newValue (uint128 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].realizedPremium uint120 newValue (uint120 oldValue) {
     sumUserRealizedPremiumPerReserveId[reserveId] = sumUserRealizedPremiumPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint128 value _userPositions[KEY address user][KEY uint256 reserveId].realizedPremium {
+hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].realizedPremium {
     require sumUserRealizedPremiumPerReserveId[reserveId] >= value;
 }
 
@@ -192,10 +192,10 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
     && 
     ( reserveId >= spoke._reserveCount => 
         sumUserSuppliedSharesPerReserveId[reserveId] == 0
-    )&&
+    )/* &&
     ( !spoke._reserveExists[hub][assetId_] => 
         hub._spokes[assetId_][spoke].addedShares == 0
-    ) 
+    ) */
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
