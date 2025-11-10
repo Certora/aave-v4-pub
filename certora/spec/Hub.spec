@@ -17,8 +17,7 @@ methods {
     function _validateAdd(
         IHub.Asset storage asset,
         IHub.SpokeData storage spoke,
-        uint256 amount,
-        address from
+        uint256 amount
     ) internal => NONDET;
 
     function _validateRemove(
@@ -38,8 +37,7 @@ methods {
         IHub.Asset storage asset,
         IHub.SpokeData storage spoke,
         uint256 drawnAmount,
-        uint256 premiumAmount,
-        address from
+        uint256 premiumAmount
     ) internal => NONDET;
 
     function _validateReportDeficit(

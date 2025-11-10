@@ -21,7 +21,7 @@ rule nothingForZero_add(uint256 assetId, uint256 amount, address from) {
     uint256 fromBalanceBefore = balanceByToken[asset][from];
     uint256 spokeSharesBefore = hub._spokes[assetId][spoke].addedShares;
 
-    add(e, assetId, amount, from);
+    add(e, assetId, amount);
 
     assert balanceByToken[asset][hub] > externalBalanceBefore && hub._spokes[assetId][spoke].addedShares > spokeSharesBefore && fromBalanceBefore > balanceByToken[asset][from];
     // no fee and no asset lost

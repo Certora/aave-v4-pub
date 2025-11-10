@@ -78,12 +78,12 @@ rule addAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address fr
     requireAllInvariants(assetId,e);
     storage init = lastStorage;
 
-    add(e, assetId, amountX, from);
-    add(e, assetId, amountY, from);
+    add(e, assetId, amountX);
+    add(e, assetId, amountY);
     uint256 afterTwoSteps = getSpokeAddedShares(e, assetId, spoke);
 
     //expecting the code to enforce that amountX+amountY can not overflow
-    add(e, assetId, assert_uint256(amountX + amountY), from)at init;
+    add(e, assetId, assert_uint256(amountX + amountY)) at init;
     uint256 afterOneStep = getSpokeAddedShares(e, assetId, spoke);
 
     //rounding should be in favor of the house
@@ -153,11 +153,11 @@ rule restoreAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, addres
     require premiumDeltaXY.offsetDelta == premiumDeltaX.offsetDelta + premiumDeltaY.offsetDelta;
     require premiumDeltaXY.realizedDelta == premiumDeltaX.realizedDelta + premiumDeltaY.realizedDelta;
     
-    restore(e, assetId, amountX, premiumAmountX, premiumDeltaX, from);
-    restore(e, assetId, amountY, premiumAmountY, premiumDeltaY, from);
+    restore(e, assetId, amountX, premiumAmountX, premiumDeltaX);
+    restore(e, assetId, amountY, premiumAmountY, premiumDeltaY);
     uint256 afterTwoSteps = getSpokeTotalOwed(e, assetId, spoke);
     //expecting the code to enforce that amountX+amountY can not overflow
-    restore(e, assetId, assert_uint256(amountX + amountY), assert_uint256(premiumAmountX + premiumAmountY),premiumDeltaXY, from)at init;
+    restore(e, assetId, assert_uint256(amountX + amountY), assert_uint256(premiumAmountX + premiumAmountY), premiumDeltaXY) at init;
     uint256 afterOneStep = getSpokeTotalOwed(e, assetId, spoke);
     assert afterOneStep <= afterTwoSteps;
     satisfy afterOneStep < afterTwoSteps;

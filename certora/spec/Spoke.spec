@@ -117,7 +117,7 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     uint120 beforeUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
     uint120 beforeUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
     uint120 beforeUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
-    uint16 beforeUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
+    uint24 beforeUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     // Execute the operation 
     calldataarg args;
     f(e, args);
@@ -130,7 +130,7 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     uint120 afterUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
     uint120 afterUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
     uint120 afterUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
-    uint16 afterUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
+    uint24 afterUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     
     assert beforePositionStatus_borrowing == afterPositionStatus_borrowing && 
     beforePositionStatus_usingAsCollateral == afterPositionStatus_usingAsCollateral && 

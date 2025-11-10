@@ -271,6 +271,9 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
     else if (f.selector == sig:getAssetAccruedFees(uint256).selector) {
         return getAssetAccruedFees(e, args);
     }
+    else if (f.selector == sig:isUnderlyingListed(address).selector) {
+        return isUnderlyingListed(e, args) ? 1 : 0;
+    }
     else
     {
         assert false, "unknown view function";
