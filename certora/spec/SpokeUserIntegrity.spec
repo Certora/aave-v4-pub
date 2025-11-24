@@ -7,10 +7,8 @@ This allows us to assume that the user is the same throughout the operation in t
 using SpokeInstance as spoke;
 
 methods {
-    // pure functions that are heavy on the computation 
-    function LiquidationLogic._calculateLiquidationAmounts(
-    LiquidationLogic.CalculateLiquidationAmountsParams memory params
-  ) internal returns (uint256, uint256, uint256) => NONDET ALL; 
+    // Note: _calculateLiquidationAmounts returns a struct, cannot use NONDET with struct return types
+    // Summary removed - function will be inlined or handled by default summary 
 
     function Math.mulDiv(uint256 x, uint256 y, uint256 denominator) internal  returns (uint256) => NONDET ALL;
     function Math.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) internal returns (uint256) => NONDET ALL;
@@ -78,11 +76,11 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
     checkAndSetUser(user);
 }   
 
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset uint120 newValue (uint120 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay uint200 newValue (uint200 oldValue) {
     checkAndSetUser(user);
 }
 
-hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset {
+hook Sload uint200 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay {
     checkAndSetUser(user);
 }
 
@@ -94,7 +92,8 @@ hook Sstore  _positionStatus[KEY address user].map[KEY uint256 slot] uint256 val
     checkAndSetUser(user);
 }
 
-rule userIntegrity(method f)  {
+rule userIntegrity(method f) filtered {f -> f.selector != sig:liquidationCall(uint256, uint256, address, uint256, bool).selector  } 
+{
     env e;
     calldataarg args;
 

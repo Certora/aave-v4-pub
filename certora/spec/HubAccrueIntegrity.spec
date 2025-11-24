@@ -57,11 +57,11 @@ definition emptyAsset(uint256 assetId) returns bool =
     hub._assets[assetId].addedShares == 0 &&
         hub._assets[assetId].liquidity == 0 &&
         hub._assets[assetId].addedShares == 0 &&
-        hub._assets[assetId].deficit == 0 &&
+        hub._assets[assetId].deficitRay == 0 &&
         hub._assets[assetId].swept == 0 &&
         hub._assets[assetId].premiumShares == 0 &&
-        hub._assets[assetId].premiumOffset == 0 &&
-        hub._assets[assetId].realizedPremium == 0 &&
+        hub._assets[assetId].premiumOffsetRay == 0 &&
+        hub._assets[assetId].realizedPremiumRay == 0 &&
         hub._assets[assetId].drawnShares == 0 &&
         hub._assets[assetId].drawnIndex == 0 &&
         hub._assets[assetId].drawnRate == 0 &&
@@ -70,8 +70,8 @@ definition emptyAsset(uint256 assetId) returns bool =
             hub._spokes[assetId][spoke].addedShares == 0 &&
             hub._spokes[assetId][spoke].drawnShares == 0 &&
             hub._spokes[assetId][spoke].premiumShares == 0  &&
-            hub._spokes[assetId][spoke].premiumOffset == 0 &&
-            hub._spokes[assetId][spoke].realizedPremium == 0 
+            hub._spokes[assetId][spoke].premiumOffsetRay == 0 &&
+            hub._spokes[assetId][spoke].realizedPremiumRay == 0 
         ) && 
         hub._assets[assetId].underlying == 0;
 
@@ -95,7 +95,7 @@ rule baseDebtIndex_increasing(uint256 assetId) {
     assert hub._assets[assetId].drawnIndex >= before;
     // if the debt is all realized premium, then the drawnIndex should not increase
     assert (hub._assets[assetId].drawnRate >= mathWrapper.SECONDS_PER_YEAR() 
-            && baseDebt > hub._assets[assetId].realizedPremium) =>
+            && baseDebt > hub._assets[assetId].realizedPremiumRay) =>
              hub._assets[assetId].drawnIndex > before;
     satisfy hub._assets[assetId].drawnRate == mathWrapper.SECONDS_PER_YEAR();
 }
@@ -112,13 +112,13 @@ rule premiumOffset_Integrity_accrue(uint256 assetId, address spokeId) {
     //requireInvariant baseDebtIndexMin(assetId); 
     require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= wadRayMath.RAY();
 
-    require previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffset && 
-    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffset; 
+    require previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffsetRay && 
+    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffsetRay; 
     
     accrueInterest(e, assetId);
 
-    assert previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffset && 
-    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffset;
+    assert previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffsetRay && 
+    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffsetRay;
     
 }
 
@@ -250,14 +250,20 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
         (a, b, c) = getSpokePremiumData(e, args); 
         return a + b + c;
     }
+    else if (f.selector == sig:getAssetPremiumRay(uint256).selector) {
+        return getAssetPremiumRay(e, args);
+    }
+    else if (f.selector == sig:getSpokePremiumRay(uint256,address).selector) {
+        return getSpokePremiumRay(e, args);
+    }
     else if (f.selector == sig:getSpokeDrawnShares(uint256,address).selector) {
         return getSpokeDrawnShares(e, args);
     }
     else if (f.selector == sig:MIN_ALLOWED_UNDERLYING_DECIMALS().selector) {
         return MIN_ALLOWED_UNDERLYING_DECIMALS(e, args);
     }
-    else if (f.selector == sig:getAssetDeficit(uint256).selector) {
-        return getAssetDeficit(e, args);
+    else if (f.selector == sig:getAssetDeficitRay(uint256).selector) {
+        return getAssetDeficitRay(e, args);
     }
     else if (f.selector == sig:getAssetLiquidity(uint256).selector) {
         return getAssetLiquidity(e, args);
@@ -265,8 +271,8 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
     else if (f.selector == sig:getAssetSwept(uint256).selector) {
         return getAssetSwept(e, args);
     }
-    else if (f.selector == sig:getSpokeDeficit(uint256,address).selector) {
-        return getSpokeDeficit(e, args);
+    else if (f.selector == sig:getSpokeDeficitRay(uint256,address).selector) {
+        return getSpokeDeficitRay(e, args);
     }
     else if (f.selector == sig:getAssetAccruedFees(uint256).selector) {
         return getAssetAccruedFees(e, args);

@@ -20,6 +20,7 @@ methods {
         => safeTransferFromCVL(token, executingContract, from, to, amount) expect bool;
     function _.balanceOf(address account) external => 
         tokenBalanceOf(calledContract, account) expect uint256;
+    function _.balanceOf(address token, address account) internal => balanceByToken[token][account] expect uint256;
 
     function _.permit(
     address owner,

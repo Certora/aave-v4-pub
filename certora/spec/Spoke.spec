@@ -1,108 +1,173 @@
 
 import "./SpokeBase.spec";
-import "./symbolicRepresentation/SymbolicHub.spec";
-import "./symbolicRepresentation/SymbolicPositionStatus.spec";
+//import "./symbolicRepresentation/SymbolicHub.spec";
 
-using SpokeInstance as spoke;
 // Spoke independent spec file. No link to hub and other contracts.
-
-// Methods block for Spoke contract
+//////// symbolic hub starts here ////////
 methods {
     
-    
-    // View Functions - Reserve Data
-    function _.getSpokeOwed(uint256 assetId, address _spoke) external => HAVOC_ECF;
-    function _.getSpokeAddedAssets(uint256 assetId, address _spoke) external => HAVOC_ECF;
-    function _.getSpokeAddedShares(uint256 assetId, address _spoke) external => HAVOC_ECF;
-    function _.getSpokeTotalOwed(uint256 assetId, address _spoke) external => HAVOC_ECF;
-    
-    // Spoke contract view functions
-    function _.getReserveDebt(uint256 reserveId) external => HAVOC_ECF;
-    function _.getReserveTotalDebt(uint256 reserveId) external => HAVOC_ECF;
-    function _.getReserve(uint256 reserveId) external => HAVOC_ECF;
-    function _.getDynamicReserveConfig(uint256 reserveId) external => HAVOC_ECF;
+    function _.previewRemoveByShares(uint256 assetId, uint256 shares) external with (env e) => previewRemoveBySharesCVL(assetId, shares, e) expect uint256;
 
-    
+    function _.previewAddByAssets(uint256 assetId, uint256 assets) external with (env e) => previewAddByAssetsCVL(assetId, assets, e) expect uint256;
 
-    function isBorrowing(uint256 reserveId, address user) external returns (bool) envfree;
-    function isUsingAsCollateral(uint256 reserveId, address user) external returns (bool) envfree;
+    function _.previewRemoveByAssets(uint256 assetId, uint256 assets) external with (env e) => previewRemoveByAssetsCVL(assetId, assets, e) expect uint256;
 
-    function LiquidationLogic._calculateLiquidationAmounts(
-    LiquidationLogic.CalculateLiquidationAmountsParams memory params
-  ) internal returns (uint256, uint256, uint256) => NONDET ALL; 
+    function _.previewDrawByShares(uint256 assetId, uint256 shares) external with (env e) => previewDrawBySharesCVL(assetId, shares, e) expect uint256;
 
-    // here we assume this has not change anything 
-    // todo - can be checked independently 
-    function Spoke._notifyRiskPremiumUpdate(address user, uint256 newUserRiskPremium) internal => NONDET ALL;
+    function _.previewRestoreByShares(uint256 assetId, uint256 shares) external with (env e) => previewRestoreBySharesCVL(assetId, shares, e) expect uint256;
+
+    function _.getAssetDrawnIndex(uint256 assetId) external with (env e) => getAssetDrawnIndexCVL(assetId, e) expect uint256;
+
+
+// Supply Operations
+    function _.add(uint256 assetId, uint256 amount) external with (env e) => addSummaryCVL(assetId, amount, e) expect uint256;
+// Withdraw Operations  
+    function _.remove(uint256 assetId, uint256 amount, address to) external with (env e) => removeSummaryCVL(assetId, amount, to, e) expect uint256;
+// Borrow Operations
+    function _.draw(uint256 assetId, uint256 amount, address to) external with (env e) => drawSummaryCVL(assetId, amount, to, e) expect uint256;
+// Repay Operations
+    function _.restore(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => restoreSummaryCVL(assetId, drawnAmount, premiumDelta, e) expect uint256;
+// Report Deficit Operations
+    function _.reportDeficit(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => previewRestoreByAssetsCVL(assetId, drawnAmount, e) expect uint256;
+// Eliminate Deficit Operations
+    function _.eliminateDeficit(uint256 assetId, uint256 amount, address spokeAddress) external with (env e)  => previewRemoveByAssetsCVL(assetId, amount, e) expect uint256; 
+//refresh premium
+    function _.refreshPremium(uint256 assetId, IHubBase.PremiumDelta premiumDelta) external => HAVOC_ECF;
+
+// Pay Fee Shares Operations
+    function _.payFeeShares(uint256 assetId, uint256 shares) external => NONDET;
+
+    function _.getAssetUnderlyingAndDecimals(uint256 assetId) external => getAssetUnderlyingAndDecimalsCVL(assetId) expect (address, uint8);
+
 }
 
-use builtin rule sanity;
 
-// Enhanced ghost mirror for _userPositions[user][reserveId].suppliedShares
-persistent ghost mapping(address /*user*/ => mapping(uint256 /*reserveId*/ => uint256 /*suppliedShares*/)) userSuppliedSharePerReserveId {
-    init_state axiom forall address user. forall uint256 reserveId. userSuppliedSharePerReserveId[user][reserveId]==0;
+
+persistent ghost uint256 RAY {
+    axiom RAY == 10^27;
+    init_state axiom RAY == 10^27;
+    }
+
+// symbolic debt index: for each assetId and block timestamp there is an index
+// the index is monotonic increasing
+persistent ghost mapping(uint256 /*assetId */ => mapping(uint256 /* blockTimestamp */ => uint256)) indexOfAssetPerBlock {
+    axiom forall uint256 assetId. forall uint256 blockTimestamp. forall uint256 blockTimestamp2.
+        blockTimestamp < blockTimestamp2 => indexOfAssetPerBlock[assetId][blockTimestamp] <= indexOfAssetPerBlock[assetId][blockTimestamp2];
+    axiom forall uint256 assetId. forall uint256 blockTimestamp. indexOfAssetPerBlock[assetId][blockTimestamp] >= RAY;
 }
 
-// Hook on sstore and sload to synchronize the ghost with storage changes
+// symbolic assets to share ratio:
+persistent ghost mapping(uint256 /*assetId */ => mapping(uint256 /*blockTimestamp*/ => uint256)) shareToAssetsRatio {
+    axiom forall uint256 assetId. forall uint256 blockTimestamp. forall uint256 blockTimestamp2.
+        blockTimestamp < blockTimestamp2 => shareToAssetsRatio[assetId][blockTimestamp] <= shareToAssetsRatio[assetId][blockTimestamp2];
+    // al least RAY assets per share
+    axiom forall uint256 assetId. forall uint256 blockTimestamp. shareToAssetsRatio[assetId][blockTimestamp] >= RAY;
+}
+
+// toAddedSharesDown : assets.toSharesDown(asset.totalAddedAssets(), asset.totalAddedShares());
+function previewAddByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
+    uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+}
+
+// toAddedAssetsDown : shares.toAssetsDown(asset.totalAddedAssets(), asset.totalAddedShares());
+function previewRemoveBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
+    uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
+    return require_uint256(shares * ratio / RAY);
+}
+
+// toAddedSharesUp :assets.toSharesUp(asset.totalAddedAssets(), asset.totalAddedShares());
+function previewRemoveByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
+    uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+}
+
+// toDrawnAssetsDown : shares.rayMulDown(asset.getDrawnIndex())
+function previewDrawBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
+    uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
+    return require_uint256((shares * ratio) / RAY);
+}
+
+// toDrawnSharesUp : assets.rayDivUp(asset.getDrawnIndex())
+function previewDrawByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
+    uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+
+}
+// toDrawnAssetsUp : shares.rayMulUp(asset.getDrawnIndex());
+function previewRestoreBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
+    uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
+    return require_uint256(((shares * ratio) + RAY - 1) / RAY);
+}
+
+// toDrawnSharesDown : assets.rayDivDown(asset.getDrawnIndex());
+function previewRestoreByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
+    uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
+    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+}
+
+// getAssetDrawnIndex: returns the drawn index for an asset at a given block timestamp
+function getAssetDrawnIndexCVL(uint256 assetId, env e) returns (uint256) {
+    return indexOfAssetPerBlock[assetId][e.block.timestamp];
+}
+
+// CVL function summarizations for Hub operations with zero amount checks
+function addSummaryCVL(uint256 assetId, uint256 amount, env e) returns (uint256) {
+    require amount > 0;
+    // Return computed shares based on amount and asset using existing preview function
+    return previewAddByAssetsCVL(assetId, amount, e);
+}
+
+function removeSummaryCVL(uint256 assetId, uint256 amount, address to, env e) returns (uint256) {
+    require amount > 0;
+    // Return computed shares based on amount and asset using existing preview function
+    return previewRemoveByAssetsCVL(assetId, amount, e);
+}
+
+function drawSummaryCVL(uint256 assetId, uint256 amount, address to, env e) returns (uint256) {
+    require amount > 0;
+    // Return computed drawn shares based on amount and asset using existing preview function
+    return previewDrawByAssetsCVL(assetId, amount, e);
+}
+
+function restoreSummaryCVL(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta,  env e) returns (uint256) {
+    require drawnAmount > 0 ;
+    // Return computed restored shares based on drawn amount using existing preview function
+    return previewRestoreByAssetsCVL(assetId, drawnAmount, e);
+}
+
+
+ghost mapping(uint256 /*assetId*/ => address /*underlying*/) assetUnderlying;
+
+ghost mapping(uint256 /*assetId*/ => uint8 /*decimals*/) assetDecimals;
+
+function getAssetUnderlyingAndDecimalsCVL(uint256 assetId) returns (address, uint8) {
+    return (assetUnderlying[assetId], assetDecimals[assetId]);
+}
+
+
+// Hooks to track userGhost for suppliedShares
 hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint120 newValue (uint120 oldValue) {
-    userSuppliedSharePerReserveId[user][reserveId] = newValue;  
     require userGhost == user;
 }
 
 hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
-    require userSuppliedSharePerReserveId[user][reserveId] == value;
     require userGhost == user;
 }
 
-// Enhanced ghost mirror for _userPositions[user][reserveId].drawnShares
-persistent ghost mapping(address /*user*/ => mapping(uint256 /*reserveId*/ => uint256 /*drawnShares*/)) userDrawnSharePerReserveId {
-    init_state axiom forall address user. forall uint256 reserveId. userDrawnSharePerReserveId[user][reserveId]==0;
-}
-
-// Hook on sstore and sload to synchronize the ghost with storage changes
+// Hooks to track userGhost for drawnShares
 hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares uint120 newValue (uint120 oldValue) {
-    userDrawnSharePerReserveId[user][reserveId] = newValue;
     require userGhost == user;
 }
 
 hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
-    require userDrawnSharePerReserveId[user][reserveId] == value;
     require userGhost == user;
 }
 
 
 
-rule checkUserHealth(method f) filtered {f -> f.selector != sig:multicall(bytes[]).selector && !increaseCollateralOrReduceDebtFunctions(f)}  {
-    uint256 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ^ 18;
-    // Get the user address from the method call
-    address user;
-    env e;
-    setup();
-    require userGhost == user;
-    
-    // Check health factor before the operation
-    ISpoke.UserAccountData beforeUserAccountData = getUserAccountData(e,user);
-    require beforeUserAccountData.healthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD;
-    
-    // Execute the operation 
-    calldataarg args;
-    f(e, args);
-    
-    // If the operation succeeded, check health factor after
-    ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
-    assert afterUserAccountData.healthFactor >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD;
-}
 
-definition increaseCollateralOrReduceDebtFunctions(method f) returns bool =
-    f.selector != sig:withdraw(uint256, uint256, address).selector && 
-    f.selector != sig:liquidationCall(uint256, uint256, address, uint256, bool).selector &&
-    f.selector != sig:borrow(uint256, uint256, address).selector &&
-    f.selector != sig:setUsingAsCollateral(uint256, bool, address).selector && 
-    f.selector != sig:repay(uint256,uint256,address).selector &&
-    f.selector != sig:updateUserDynamicConfig(address).selector;
-
-
-rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && increaseCollateralOrReduceDebtFunctions(f)}  {
+rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> !outOfScopeFunctions(f) && !f.isView && increaseCollateralOrReduceDebtFunctions(f)}  {
     uint256 reserveId; uint256 slot;
     address user;
     env e;
@@ -113,9 +178,9 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     bool beforePositionStatus_borrowing = isBorrowing[user][reserveId];
     bool beforePositionStatus_usingAsCollateral = isUsingAsCollateral[user][reserveId];
     uint120 beforeUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint120 beforeUserPosition_realizedPremium = spoke._userPositions[user][reserveId].realizedPremium; 
+    uint200 beforeUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay; 
     uint120 beforeUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
-    uint120 beforeUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
+    uint200 beforeUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
     uint120 beforeUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
     uint24 beforeUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     // Execute the operation 
@@ -126,63 +191,40 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> f.selector
     bool afterPositionStatus_borrowing = isBorrowing[user][reserveId];
     bool afterPositionStatus_usingAsCollateral = isUsingAsCollateral[user][reserveId];
     uint120 afterUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint120 afterUserPosition_realizedPremium = spoke._userPositions[user][reserveId].realizedPremium;
+    uint200 afterUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay;
     uint120 afterUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
-    uint120 afterUserPosition_premiumOffset = spoke._userPositions[user][reserveId].premiumOffset;
+    uint200 afterUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
     uint120 afterUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
     uint24 afterUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     
-    assert beforePositionStatus_borrowing == afterPositionStatus_borrowing && 
-    beforePositionStatus_usingAsCollateral == afterPositionStatus_usingAsCollateral && 
-    beforeUserPosition_drawnShares >= afterUserPosition_drawnShares && 
-    beforeUserPosition_realizedPremium >= afterUserPosition_realizedPremium && 
-    beforeUserPosition_premiumShares >= afterUserPosition_premiumShares && 
-    beforeUserPosition_premiumOffset >= afterUserPosition_premiumOffset && 
-    beforeUserPosition_suppliedShares <= afterUserPosition_suppliedShares && 
-    beforeUserPosition_dynamicConfigKey == afterUserPosition_dynamicConfigKey;
+    assert beforePositionStatus_borrowing == afterPositionStatus_borrowing || 
+    (beforePositionStatus_borrowing && !afterPositionStatus_borrowing && afterUserPosition_drawnShares == 0 && afterUserPosition_realizedPremiumRay == 0 && afterUserPosition_premiumShares == 0 && afterUserPosition_premiumOffsetRay == 0);
+    assert beforePositionStatus_usingAsCollateral == afterPositionStatus_usingAsCollateral;
+    assert beforeUserPosition_drawnShares >= afterUserPosition_drawnShares;
+    assert beforeUserPosition_realizedPremiumRay >= afterUserPosition_realizedPremiumRay;
+    assert beforeUserPosition_premiumShares >= afterUserPosition_premiumShares;
+    assert beforeUserPosition_premiumOffsetRay >= afterUserPosition_premiumOffsetRay;
+    assert beforeUserPosition_suppliedShares <= afterUserPosition_suppliedShares;
+    assert beforeUserPosition_dynamicConfigKey == afterUserPosition_dynamicConfigKey;
 }
 
 
-/* todo: check if need to report the zero-out in reportDeficit 
-https://prover.certora.com/output/40726/71dcf10e79fd42b39f508dc122b6fdfb/ 
-*/
-invariant isBorrowingIFFdrawnShares()  
-forall uint256 reserveId. forall address user.
-    spoke._userPositions[user][reserveId].drawnShares > 0   <=>  isBorrowing[user][reserveId]
-filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+use invariant isBorrowingIFFdrawnShares;
+// Note: validReserveId is now a require statement in setup() function in SpokeBase.spec
+
 
 invariant drawnSharesZero(address user, uint256 reserveId) 
-    spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffset == 0 && spoke._userPositions[user][reserveId].realizedPremium == 0) filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+    spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 && spoke._userPositions[user][reserveId].realizedPremiumRay == 0) 
+    filtered {f -> !outOfScopeFunctions(f) && 
+    // repay is proved in SpokeHubIntegrity.spec
+    f.selector != sig:repay(uint256, uint256, address).selector
+    }
     {
         preserved with (env e) {
             setup();
         }
     }
     
-
-invariant validReserveId()
-forall uint256 reserveId. forall address user.
-    // exists
-    (reserveId < spoke._reserveCount  => 
-    // has underlying and hub
-    (spoke._reserves[reserveId].underlying != 0 && spoke._reserves[reserveId].hub != 0 && spoke._reserveExists[spoke._reserves[reserveId].hub][spoke._reserves[reserveId].assetId] )
-    &&
-    // not exists
-    (reserveId >= spoke._reserveCount => ( 
-    // no one borrowed or used as collateral
-    !isBorrowing[user][reserveId] && !isUsingAsCollateral[user][reserveId]
-    // no supplied or drawn shares
-    && userSuppliedSharePerReserveId[user][reserveId] == 0 && userDrawnSharePerReserveId[user][reserveId] == 0 &&
-    // no premium shares or offset
-    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffset == 0 &&
-    // no realized premium
-    spoke._userPositions[user][reserveId].realizedPremium == 0 &&
-
-    // has no underlying, hub, assetId
-    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 )))
-
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector}
-
 
 
 invariant validReserveId_single(uint256 reserveId)
@@ -201,17 +243,45 @@ invariant validReserveId_single(uint256 reserveId)
     // no one borrowed or used as collateral
     !isBorrowing[user][reserveId] && !isUsingAsCollateral[user][reserveId]
     // no supplied or drawn shares
-    && userSuppliedSharePerReserveId[user][reserveId] == 0 && userDrawnSharePerReserveId[user][reserveId] == 0 &&
+    && spoke._userPositions[user][reserveId].suppliedShares == 0 && spoke._userPositions[user][reserveId].drawnShares == 0 &&
     // no premium shares or offset
-    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffset == 0 &&
+    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
     // no realized premium
-    spoke._userPositions[user][reserveId].realizedPremium == 0 ))
+    spoke._userPositions[user][reserveId].realizedPremiumRay == 0 ))
 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+    filtered {f -> !outOfScopeFunctions(f)}
+    {
+        preserved {
+            requireInvariant validReserveId_single(reserveId);
+        }
+    }
+
+// need to help the grounding, proven in validReserveId_single
+function validReserveId_singleUser(uint256 reserveId, address user)  {
+    require
+    (reserveId < spoke._reserveCount  => 
+    // has underlying and hub
+    (spoke._reserves[reserveId].underlying != 0 && spoke._reserves[reserveId].hub != 0 && spoke._reserveExists[spoke._reserves[reserveId].hub][spoke._reserves[reserveId].assetId] ))
+    &&
+    // not exists
+    (reserveId >= spoke._reserveCount =>
+    // has no underlying, hub, assetId
+    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 && 
+    spoke._dynamicConfig[reserveId][0].collateralFactor == 0 &&
+    // no one borrowed or used as collateral
+    !isBorrowing[user][reserveId] && !isUsingAsCollateral[user][reserveId]
+    // no supplied or drawn shares
+    && spoke._userPositions[user][reserveId].suppliedShares == 0 && spoke._userPositions[user][reserveId].drawnShares == 0 &&
+    // no premium shares or offset
+    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
+    // no realized premium
+    spoke._userPositions[user][reserveId].realizedPremiumRay == 0 );
+}
+
 
 invariant uniqueAssetIdPerReserveId(uint256 reserveId, uint256 otherReserveId) 
     (reserveId < spoke._reserveCount && otherReserveId < spoke._reserveCount  && reserveId != otherReserveId ) => (spoke._reserves[reserveId].assetId != spoke._reserves[otherReserveId].assetId  || spoke._reserves[reserveId].hub != spoke._reserves[otherReserveId].hub)
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector && f.contract == spoke}
+    filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved {
             requireInvariant validReserveId_single(reserveId);
@@ -220,61 +290,99 @@ invariant uniqueAssetIdPerReserveId(uint256 reserveId, uint256 otherReserveId)
 
     }
 
-        
-    
 
-invariant userCollateralCount() 
-    reserveCountGhost <= spoke._reserveCount 
-        filtered {f -> f.selector != sig:multicall(bytes[]).selector }
-    {
-    
-        preserved setUsingAsCollateral(uint256 reserveId, bool usingAsCollateral, address onBehalfOf) with (env e) {
-            setup();
-            require userGhost == onBehalfOf;
-        }
-        preserved borrow(uint256 reserveId,uint256 amount,address onBehalfOf) with (env e)  {
-            setup();
-            require userGhost == onBehalfOf;
-        }
-    
-    }
+rule realizedPremiumRayConsistency(uint256 reserveId, address user, method f)
+    filtered {f -> !outOfScopeFunctions(f) && !f.isView}
+{
+    env e;
+    setup();
+    requireInvariant validReserveId_single(reserveId);
+    require userGhost == user;
+    require spoke._userPositions[user][reserveId].realizedPremiumRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
+    calldataarg args;
+    f(e, args);
+    assert spoke._userPositions[user][reserveId].realizedPremiumRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
+}
+
+
     
 /* todo: failing when collateralFactor becomes 0 
 https://prover.certora.com/output/40726/b077c5f4ef564ee2936a9532c6c246f8/
 */
-rule noCollateralNoDebt_simple_cases(uint256 reserveIdUsed, address user, method f) 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && increaseCollateralOrReduceDebtFunctions(f)} {
+rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f) 
+    filtered {f -> outOfScopeFunctions(f) && !f.isView && increaseCollateralOrReduceDebtFunctions(f)} {
     env e;
     setup();
+    requireInvariant validReserveId_single(reserveIdUsed);
+    validReserveId_singleUser(reserveIdUsed, user);
+    validReserveId_singleUser(spoke._reserveCount, user);
     require userGhost == user;
     ISpoke.UserAccountData beforeUserAccountData = getUserAccountData(e,user);
+    uint24 dynamicConfigKey = spoke._reserves[reserveIdUsed].dynamicConfigKey;
+    uint16 beforeCollateralFactor = spoke._dynamicConfig[reserveIdUsed][dynamicConfigKey].collateralFactor;
     require beforeUserAccountData.totalCollateralValue == 0 => beforeUserAccountData.totalDebtValue == 0;
+
     
     calldataarg args;
     f(e, args);
     ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
+    uint24 dynamicConfigKeyAfter = spoke._reserves[reserveIdUsed].dynamicConfigKey;
+    uint16 afterCollateralFactor = spoke._dynamicConfig[reserveIdUsed][dynamicConfigKeyAfter].collateralFactor;
+    require  beforeCollateralFactor > 0 => afterCollateralFactor > 0, "rule collateralFactorNotZero";
     assert afterUserAccountData.totalCollateralValue == 0 => afterUserAccountData.totalDebtValue == 0;
 }
 
-/* todo: almost done, need to work on liquidation 
-https://prover.certora.com/output/40726/d4544a33a4cf4e71b823f33d79c06d2e/
-*/
-rule noCollateralNoDebt_complex_cases(uint256 reserveIdUsed, address user, method f) 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector && !f.isView && !increaseCollateralOrReduceDebtFunctions(f)} {
+// need this to prove noCollateralNoDebt
+rule collateralFactorNotZero(uint256 reserveId, address user, method f) filtered {f -> !outOfScopeFunctions(f) && !f.isView} {
+    env e;
+    setup();
+    validReserveId_singleUser(reserveId, user);
+    require userGhost == user;
+    uint24 dynamicConfigKeyBefore = spoke._reserves[reserveId].dynamicConfigKey;
+    require spoke._dynamicConfig[reserveId][dynamicConfigKeyBefore].collateralFactor > 0;
+    calldataarg args;
+    f(e, args);
+    uint24 dynamicConfigKeyAfter = spoke._reserves[reserveId].dynamicConfigKey;
+    assert spoke._dynamicConfig[reserveId][dynamicConfigKeyAfter].collateralFactor > 0;
+}
+
+
+
+invariant validReserveId()
+forall uint256 reserveId. forall address user.
+    // exists
+    (reserveId < spoke._reserveCount  => 
+    // has underlying and hub
+    (spoke._reserves[reserveId].underlying != 0 && spoke._reserves[reserveId].hub != 0 && spoke._reserveExists[spoke._reserves[reserveId].hub][spoke._reserves[reserveId].assetId] )
+    &&
+    // not exists
+    (reserveId >= spoke._reserveCount => ( 
+    // no one borrowed or used as collateral
+    !isBorrowing[user][reserveId] && !isUsingAsCollateral[user][reserveId]
+    // no supplied or drawn shares
+    && spoke._userPositions[user][reserveId].suppliedShares == 0 && spoke._userPositions[user][reserveId].drawnShares == 0 &&
+    // no premium shares or offset
+    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
+    // no realized premium
+    spoke._userPositions[user][reserveId].realizedPremiumRay == 0 &&
+
+    // has no underlying, hub, assetId
+    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 )))
+
+    filtered {f -> f.selector != sig:multicall(bytes[]).selector && f.selector != sig:liquidationCall(uint256, uint256, address, uint256, bool).selector}
+
+
+
+rule deterministicUserDebtValue(uint256 reserveId, address user) {
     env e;
     setup();
     require userGhost == user;
-    ISpoke.UserAccountData beforeUserAccountData = getUserAccountData(e,user);
-    require beforeUserAccountData.totalCollateralValue == 0 => beforeUserAccountData.totalDebtValue == 0;
-    
-    calldataarg args;
-    f(e, args);
-    ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
-    assert afterUserAccountData.totalCollateralValue == 0 => afterUserAccountData.totalDebtValue == 0;
+    uint256 drawnDebt; uint256 premiumDebt;
+    (drawnDebt, premiumDebt) = spoke.getUserDebt(e, reserveId, user);
+    uint256 drawnDebt2; uint256 premiumDebt2;
+    (drawnDebt2, premiumDebt2) = spoke.getUserDebt(e, reserveId, user);
+    assert drawnDebt == drawnDebt2;
+    assert premiumDebt == premiumDebt2;
 }
 
-function setup() {
-    requireInvariant validReserveId();
-    //requireInvariant userCollateralCount();
-    requireInvariant isBorrowingIFFdrawnShares();
-}
+

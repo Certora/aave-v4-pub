@@ -3,18 +3,13 @@ import "./SpokeBase.spec";
 import "./symbolicRepresentation/SymbolicPositionStatus.spec";
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 
-using SpokeInstance as spoke;
+// Note: 'spoke' alias is declared in SpokeBase.spec
 using Hub as hub;
 
 
 // Methods block for Spoke contract
 methods {
-    
-
-    function LiquidationLogic._calculateLiquidationAmounts(
-    LiquidationLogic.CalculateLiquidationAmountsParams memory params
-  ) internal returns (uint256, uint256, uint256) => NONDET ALL; 
-
+    // Note: LiquidationLogic._calculateLiquidationAmounts is summarized in SpokeBase.spec
 
     function _.setInterestRateData(uint256 assetId, bytes data) external => NONDET; 
 
@@ -25,7 +20,6 @@ methods {
 
 // assume a given single drawnIndex
 ghost uint256 cachedIndex;
-
 
 
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserSuppliedSharesPerReserveId {
@@ -41,7 +35,6 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
     require sumUserSuppliedSharesPerReserveId[reserveId] >= value;
 }
 
-
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserDrawnSharesPerReserveId {
     init_state axiom forall uint256 reserveId. sumUserDrawnSharesPerReserveId[reserveId] == 0;
 }
@@ -52,7 +45,6 @@ hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].drawnShares 
 }
 
 hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].drawnShares {
-
     require sumUserDrawnSharesPerReserveId[reserveId] >= value;
 }
 
@@ -74,11 +66,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserPremiumOffsetP
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset uint120 newValue (uint120 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay uint200 newValue (uint200 oldValue) {
     sumUserPremiumOffsetPerReserveId[reserveId] = sumUserPremiumOffsetPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffset {
+hook Sload uint200 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay {
     require sumUserPremiumOffsetPerReserveId[reserveId] >= value;
 }
 
@@ -87,13 +79,17 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserRealizedPremiu
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].realizedPremium uint120 newValue (uint120 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].realizedPremiumRay uint200 newValue (uint200 oldValue) {
     sumUserRealizedPremiumPerReserveId[reserveId] = sumUserRealizedPremiumPerReserveId[reserveId] + newValue - oldValue;
 }
 
-hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].realizedPremium {
+hook Sload uint200 value _userPositions[KEY address user][KEY uint256 reserveId].realizedPremiumRay {
     require sumUserRealizedPremiumPerReserveId[reserveId] >= value;
 }
+
+
+
+
 
 invariant userDrawnShareConsistency(uint256 reserveId, uint256 assetId_) 
     sumUserDrawnSharesPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].drawnShares &&
@@ -103,7 +99,7 @@ invariant userDrawnShareConsistency(uint256 reserveId, uint256 assetId_)
     ( !spoke._reserveExists[hub][assetId_] => 
         hub._spokes[assetId_][spoke].drawnShares == 0
     ) 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+    filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
@@ -134,7 +130,7 @@ invariant userPremiumShareConsistency(uint256 reserveId, uint256 assetId_)
     ( !spoke._reserveExists[hub][assetId_] => 
         hub._spokes[assetId_][spoke].premiumShares == 0
     ) 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+    filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
@@ -147,14 +143,14 @@ invariant userPremiumShareConsistency(uint256 reserveId, uint256 assetId_)
     }
 
 invariant userPremiumOffsetConsistency(uint256 reserveId, uint256 assetId_) 
-    sumUserPremiumOffsetPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].premiumOffset &&
+    sumUserPremiumOffsetPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].premiumOffsetRay &&
     ( reserveId >= spoke._reserveCount => 
         sumUserPremiumOffsetPerReserveId[reserveId] == 0
     ) &&
     ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].premiumOffset == 0
+        hub._spokes[assetId_][spoke].premiumOffsetRay == 0
     ) 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+    filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
@@ -167,14 +163,14 @@ invariant userPremiumOffsetConsistency(uint256 reserveId, uint256 assetId_)
     }
 
 invariant userRealizedPremiumConsistency(uint256 reserveId, uint256 assetId_) 
-    sumUserRealizedPremiumPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].realizedPremium &&
+    sumUserRealizedPremiumPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].realizedPremiumRay &&
     ( reserveId >= spoke._reserveCount => 
         sumUserRealizedPremiumPerReserveId[reserveId] == 0
     ) &&
     ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].realizedPremium == 0
+        hub._spokes[assetId_][spoke].realizedPremiumRay == 0
     ) 
-    filtered {f -> f.selector != sig:multicall(bytes[]).selector}
+    filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
@@ -192,10 +188,8 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
     && 
     ( reserveId >= spoke._reserveCount => 
         sumUserSuppliedSharesPerReserveId[reserveId] == 0
-    )/* &&
-    ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].addedShares == 0
-    ) */
+    )
+    filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
@@ -211,6 +205,39 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
         }
     }
 
+
+
+
+//todo - check this violation, seems that debt can increse a bit no health check
+//https://prover.certora.com/output/40726/7b75b670ab0b4dc099147c08e2b33527/ 
+rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
+    env e;
+    safeAssumptions();
+    require userGhost == user;
+    
+    uint120 beforeUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
+    uint200 beforeUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay;
+
+    spoke.repay(e, reserveId, amount, user);
+
+    uint120 afterUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
+    uint200 afterUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay;
+    
+    satisfy beforeUserPosition_drawnShares == afterUserPosition_drawnShares;
+    satisfy beforeUserPosition_realizedPremiumRay < afterUserPosition_realizedPremiumRay;
+    satisfy beforeUserPosition_drawnShares == afterUserPosition_drawnShares && beforeUserPosition_realizedPremiumRay < afterUserPosition_realizedPremiumRay;
+
+}
+
+
+rule checkRepay_zeroDebt(uint256 reserveId, uint256 amount, address user) {
+    env e;
+    require spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 && spoke._userPositions[user][reserveId].realizedPremiumRay == 0);
+
+    spoke.repay(e, reserveId, amount, user);
+
+    assert spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 && spoke._userPositions[user][reserveId].realizedPremiumRay == 0);
+}
 
 function safeAssumptions() {
     // rules proved in spoke.spec and assuming one hub
@@ -232,16 +259,16 @@ function safeAssumptions() {
         hub._assets[assetId].addedShares == 0 &&
         hub._assets[assetId].drawnShares == 0 &&
         hub._assets[assetId].premiumShares == 0 &&
-        hub._assets[assetId].premiumOffset == 0 &&
-        hub._assets[assetId].realizedPremium == 0 &&
+        hub._assets[assetId].premiumOffsetRay == 0 &&
+        hub._assets[assetId].realizedPremiumRay == 0 &&
         hub._assets[assetId].drawnIndex == 0 &&
         hub._assets[assetId].drawnRate == 0 &&
         hub._assets[assetId].lastUpdateTimestamp == 0 &&
         hub._spokes[assetId][spoke].addedShares == 0 &&
         hub._spokes[assetId][spoke].drawnShares == 0 &&
         hub._spokes[assetId][spoke].premiumShares == 0  &&
-        hub._spokes[assetId][spoke].premiumOffset == 0 &&
-        hub._spokes[assetId][spoke].realizedPremium == 0 &&
+        hub._spokes[assetId][spoke].premiumOffsetRay == 0 &&
+        hub._spokes[assetId][spoke].realizedPremiumRay == 0 &&
         !hub._spokes[assetId][spoke].active
         );
 

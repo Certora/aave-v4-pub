@@ -18,7 +18,7 @@ methods {
 // Borrow Operations
     function _.draw(uint256 assetId, uint256 amount, address to) external with (env e) => drawSummaryCVL(assetId, amount, to, e) expect uint256;
 // Repay Operations
-    function _.restore(uint256 assetId, uint256 drawnAmount, uint256 premiumAmount, IHubBase.PremiumDelta premiumDelta, address from) external with (env e) => restoreSummaryCVL(assetId, drawnAmount, premiumAmount, premiumDelta, from, e) expect uint256;
+    function _.restore(uint256 assetId, uint256 drawnAmount, uint256 premiumAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => restoreSummaryCVL(assetId, drawnAmount, premiumAmount, premiumDelta, e) expect uint256;
 // Report Deficit Operations
     function _.reportDeficit(uint256 assetId, uint256 drawnAmount, uint256 premiumAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => previewRestoreByAssetsCVL(assetId, drawnAmount, e) expect uint256;
 // Eliminate Deficit Operations
@@ -119,7 +119,7 @@ function drawSummaryCVL(uint256 assetId, uint256 amount, address to, env e) retu
     return previewDrawByAssetsCVL(assetId, amount, e);
 }
 
-function restoreSummaryCVL(uint256 assetId, uint256 drawnAmount, uint256 premiumAmount, IHubBase.PremiumDelta premiumDelta, address from, env e) returns (uint256) {
+function restoreSummaryCVL(uint256 assetId, uint256 drawnAmount, uint256 premiumAmount, IHubBase.PremiumDelta premiumDelta,  env e) returns (uint256) {
     require drawnAmount > 0 || premiumAmount > 0;
     // Return computed restored shares based on drawn amount using existing preview function
     return previewRestoreByAssetsCVL(assetId, drawnAmount, e);

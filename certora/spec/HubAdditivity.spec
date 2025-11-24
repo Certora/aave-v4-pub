@@ -147,17 +147,16 @@ rule restoreAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, addres
     IHubBase.PremiumDelta premiumDeltaX;
     IHubBase.PremiumDelta premiumDeltaY;       
     IHubBase.PremiumDelta premiumDeltaXY;
-    uint256 premiumAmountX ;
-    uint256 premiumAmountY ;
     require premiumDeltaXY.sharesDelta == premiumDeltaX.sharesDelta + premiumDeltaY.sharesDelta;
-    require premiumDeltaXY.offsetDelta == premiumDeltaX.offsetDelta + premiumDeltaY.offsetDelta;
-    require premiumDeltaXY.realizedDelta == premiumDeltaX.realizedDelta + premiumDeltaY.realizedDelta;
+    require premiumDeltaXY.offsetDeltaRay == premiumDeltaX.offsetDeltaRay + premiumDeltaY.offsetDeltaRay;
+    require premiumDeltaXY.accruedPremiumRay == premiumDeltaX.accruedPremiumRay + premiumDeltaY.accruedPremiumRay;
+    require premiumDeltaXY.restoredPremiumRay == premiumDeltaX.restoredPremiumRay + premiumDeltaY.restoredPremiumRay;
     
-    restore(e, assetId, amountX, premiumAmountX, premiumDeltaX);
-    restore(e, assetId, amountY, premiumAmountY, premiumDeltaY);
+    restore(e, assetId, amountX, premiumDeltaX);
+    restore(e, assetId, amountY, premiumDeltaY);
     uint256 afterTwoSteps = getSpokeTotalOwed(e, assetId, spoke);
     //expecting the code to enforce that amountX+amountY can not overflow
-    restore(e, assetId, assert_uint256(amountX + amountY), assert_uint256(premiumAmountX + premiumAmountY), premiumDeltaXY) at init;
+    restore(e, assetId, assert_uint256(amountX + amountY), premiumDeltaXY) at init;
     uint256 afterOneStep = getSpokeTotalOwed(e, assetId, spoke);
     assert afterOneStep <= afterTwoSteps;
     satisfy afterOneStep < afterTwoSteps;
@@ -174,18 +173,17 @@ rule reportDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amountY) 
     IHubBase.PremiumDelta premiumDeltaX;
     IHubBase.PremiumDelta premiumDeltaY;       
     IHubBase.PremiumDelta premiumDeltaXY;
-    uint256 premiumAmountX ;
-    uint256 premiumAmountY ;
 
     require premiumDeltaXY.sharesDelta == premiumDeltaX.sharesDelta + premiumDeltaY.sharesDelta;
-    require premiumDeltaXY.offsetDelta == premiumDeltaX.offsetDelta + premiumDeltaY.offsetDelta;
-    require premiumDeltaXY.realizedDelta == premiumDeltaX.realizedDelta + premiumDeltaY.realizedDelta;
+    require premiumDeltaXY.offsetDeltaRay == premiumDeltaX.offsetDeltaRay + premiumDeltaY.offsetDeltaRay;
+    require premiumDeltaXY.accruedPremiumRay == premiumDeltaX.accruedPremiumRay + premiumDeltaY.accruedPremiumRay;
+    require premiumDeltaXY.restoredPremiumRay == premiumDeltaX.restoredPremiumRay + premiumDeltaY.restoredPremiumRay;
 
-    reportDeficit(e, assetId, amountX, premiumAmountX, premiumDeltaX);
-    reportDeficit(e, assetId, amountY, premiumAmountY, premiumDeltaY);
+    reportDeficit(e, assetId, amountX, premiumDeltaX);
+    reportDeficit(e, assetId, amountY, premiumDeltaY);
     uint256 afterTwoSteps = getSpokeTotalOwed(e, assetId, spoke);
     //expecting the code to enforce that amountX+amountY can not overflow
-    reportDeficit(e, assetId, assert_uint256(amountX + amountY),  assert_uint256(premiumAmountX + premiumAmountY), premiumDeltaXY) at init;
+    reportDeficit(e, assetId, assert_uint256(amountX + amountY), premiumDeltaXY) at init;
     uint256 afterOneStep = getSpokeTotalOwed(e, assetId, spoke);
     assert afterOneStep <= afterTwoSteps;
     satisfy afterOneStep < afterTwoSteps;
@@ -203,10 +201,22 @@ rule eliminateDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amount
     eliminateDeficit(e, assetId, amountY, spoke);
     uint256 afterTwoSteps = getSpokeAddedShares(e, assetId, spoke);
     //expecting the code to enforce that amountX+amountY can not overflow
-    eliminateDeficit(e, assetId, assert_uint256(amountX + amountY), spoke)at init;
+    eliminateDeficit(e, assetId, require_uint256(amountX + amountY), spoke)at init;
     uint256 afterOneStep = getSpokeAddedShares(e, assetId, spoke);
     assert afterOneStep >= afterTwoSteps;
     satisfy afterOneStep > afterTwoSteps;
+}
+
+/** @title Draw operation increases debt shares and transfers assets to recipient */
+rule restore_debtDecrease(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) {
+    env e;
+    requireAllInvariants(assetId,e);
+    address spoke = e.msg.sender;
+    uint256 beforeDebt = getSpokeTotalOwed(e, assetId, spoke);
+    //expecting the code to enforce that amountX+amountY can not overflow
+    restore(e, assetId, drawnAmount, premiumDelta);
+    uint256 afterDebt = getSpokeTotalOwed(e, assetId, spoke);
+    assert beforeDebt >= afterDebt;
 }
 
 // optimize the calls to certain function and save in ghost (global) variable) 

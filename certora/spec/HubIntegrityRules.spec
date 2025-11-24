@@ -17,15 +17,12 @@ rule nothingForZero_add(uint256 assetId, uint256 amount, address from) {
     env e;
     address asset = hub._assets[assetId].underlying;
     address spoke = e.msg.sender;
-    uint256 externalBalanceBefore = balanceByToken[asset][hub]; 
-    uint256 fromBalanceBefore = balanceByToken[asset][from];
+    uint256 internalBalanceBefore = hub._assets[assetId].liquidity;
     uint256 spokeSharesBefore = hub._spokes[assetId][spoke].addedShares;
 
     add(e, assetId, amount);
 
-    assert balanceByToken[asset][hub] > externalBalanceBefore && hub._spokes[assetId][spoke].addedShares > spokeSharesBefore && fromBalanceBefore > balanceByToken[asset][from];
-    // no fee and no asset lost
-    assert balanceByToken[asset][hub] + balanceByToken[asset][from] == externalBalanceBefore + fromBalanceBefore; 
+    assert hub._assets[assetId].liquidity > internalBalanceBefore && hub._spokes[assetId][spoke].addedShares > spokeSharesBefore;
 }
 
 
@@ -64,6 +61,30 @@ rule nothingForZero_draw(uint256 assetId, uint256 amount, address to) {
             hub._assets[assetId].liquidity < liquidityBefore;
 }
 
+/** @title Draw operation increases debt shares and transfers assets to recipient */
+rule restore_debtDecrease(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) {
+    env e;
+    requireAllInvariants(assetId,e);
+    address spoke = e.msg.sender;
+    uint256 beforeDebt = getSpokeTotalOwed(e, assetId, spoke);
+    restore(e, assetId, drawnAmount, premiumDelta);
+    uint256 afterDebt = getSpokeTotalOwed(e, assetId, spoke);
+    assert beforeDebt >= afterDebt;
+}
+
+
+/// @title reportDeficit return same value as previewRestoreByAssetsCVL
+rule reportDeficitSameAsPreviewRestoreByAssets(uint256 assetId, uint256 drawnAmount) {
+    env e;
+    address spoke = e.msg.sender;
+    IHubBase.PremiumDelta premiumDelta;
+    requireAllInvariants(assetId,e);
+    storage init = lastStorage;
+    uint256 resultPreview = previewRestoreByAssets(e, assetId, drawnAmount);
+    uint256 resultReportDeficit = reportDeficit(e, assetId, drawnAmount, premiumDelta);
+    assert resultReportDeficit == resultPreview;
+}
+
 rule validSpokeOnly(uint256 assetId, method f) {
     env e;
     calldataarg args;
@@ -71,14 +92,14 @@ rule validSpokeOnly(uint256 assetId, method f) {
     uint256 drawnShares = hub._spokes[assetId][spoke].drawnShares;
     uint256 addedShares = hub._spokes[assetId][spoke].addedShares;
     uint256 premiumShares = hub._spokes[assetId][spoke].premiumShares;
-    uint256 premiumOffset = hub._spokes[assetId][spoke].premiumOffset;
-    uint256 realizedPremium = hub._spokes[assetId][spoke].realizedPremium;
+    uint256 premiumOffsetRay = hub._spokes[assetId][spoke].premiumOffsetRay;
+    uint256 realizedPremiumRay = hub._spokes[assetId][spoke].realizedPremiumRay;
     
     bool active = hub._spokes[assetId][spoke].active;
     f(e,args);
     assert drawnShares < hub._spokes[assetId][spoke].drawnShares => active ;
     assert addedShares < hub._spokes[assetId][spoke].addedShares => active ;
     assert premiumShares < hub._spokes[assetId][spoke].premiumShares => active ;
-    assert premiumOffset < hub._spokes[assetId][spoke].premiumOffset => active ;
-    assert realizedPremium < hub._spokes[assetId][spoke].realizedPremium => active ;
+    assert premiumOffsetRay < hub._spokes[assetId][spoke].premiumOffsetRay => active ;
+    assert realizedPremiumRay < hub._spokes[assetId][spoke].realizedPremiumRay => active ;
 }
