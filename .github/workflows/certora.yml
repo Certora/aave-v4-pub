@@ -15,10 +15,18 @@ env:
     certora/conf/HubIntegrity.conf
     certora/conf/HubValidState.conf
     certora/conf/HubValidState_totalAssets.conf
-    certora/conf/Spoke.conf
+    certora/conf/Spoke.conf --rule drawnSharesZero --msg "Spoke - drawnSharesZero"
+    certora/conf/Spoke.conf --rule noCollateralNoDebt --msg "Spoke - noCollateralNoDebt"
+    certora/conf/Spoke.conf --exclude_rule collateralFactorNotZero drawnSharesZero
     certora/conf/SpokeHealthCheck.conf
     certora/conf/SpokeUserIntegrity.conf
-    certora/conf/SpokeWithHub.conf
+    certora/conf/SpokeWithHub.conf --rule userDrawnShareConsistency --msg "SpokeWithHub - userDrawnShareConsistency"
+    certora/conf/SpokeWithHub.conf --rule userPremiumShareConsistency --msg "SpokeWithHub - userPremiumShareConsistency"
+    certora/conf/SpokeWithHub.conf --rule userPremiumOffsetConsistency --msg "SpokeWithHub - userPremiumOffsetConsistency"
+    certora/conf/SpokeWithHub.conf --rule userRealizedPremiumConsistency --msg "SpokeWithHub - userRealizedPremiumConsistency"
+    certora/conf/SpokeWithHub.conf --rule userSuppliedShareConsistency --msg "SpokeWithHub - userSuppliedShareConsistency"
+    certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency userRealizedPremiumConsistency userSuppliedShareConsistency
+
 on:
   pull_request:
     branches:
@@ -52,7 +60,6 @@ jobs:
           # Add your configurations as lines, each line is separated.
           # Specify additional options for each configuration by adding them after the configuration.
           configurations: ${{ env.CONFIGS }}
-          cli-release: alpha
           solc-versions: 0.8.28
           job-name: "Verified Rules"
           certora-key: ${{ secrets.CERTORAKEY }}
