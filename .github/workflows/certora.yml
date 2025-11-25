@@ -7,7 +7,6 @@ env:
     certora/conf/libs/SharesMath.conf
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf
-    certora/conf/libs/SymbolicRepresentation.conf
     certora/conf/Hub.conf
     certora/conf/HubAdditivity.conf
     certora/conf/HubAccrueIntegrity.conf
@@ -15,7 +14,7 @@ env:
     certora/conf/HubAccrueSupplyRate.conf
     certora/conf/HubIntegrity.conf
     certora/conf/HubValidState.conf
-    certora/conf/HubValidState _totalAssets.conf
+    certora/conf/HubValidState_totalAssets.conf
     certora/conf/Spoke.conf
     certora/conf/SpokeHealthCheck.conf
     certora/conf/SpokeUserIntegrity.conf
