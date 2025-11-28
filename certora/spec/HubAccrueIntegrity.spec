@@ -34,10 +34,10 @@ Proved also in invariant baseDebtIndexMin on all Hub functions
 rule baseDebtIndexMin_accrue(){
     env e;
     uint256 assetId;
-    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= wadRayMath.RAY();
+    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
 
     accrueInterest(e,assetId);
-    assert hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= wadRayMath.RAY();
+    assert hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
 
 }
 
@@ -82,7 +82,7 @@ Fails on cases in which baseBorrowRate <= SECONDS_PER_YEAR
 **/
 rule baseDebtIndex_increasing(uint256 assetId) {
     //Proved in invariant baseDebtIndexMin and baseDebtIndexMin_accrue
-    require hub._assets[assetId].drawnIndex >= wadRayMath.RAY();
+    require hub._assets[assetId].drawnIndex >= RAY;
 
     uint256 before = hub._assets[assetId].drawnIndex;
 
@@ -110,7 +110,7 @@ rule premiumOffset_Integrity_accrue(uint256 assetId, address spokeId) {
     require hub._assets[assetId].lastUpdateTimestamp <= e.block.timestamp; 
     
     //requireInvariant baseDebtIndexMin(assetId); 
-    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= wadRayMath.RAY();
+    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
 
     require previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffsetRay && 
     previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffsetRay; 
@@ -142,7 +142,6 @@ rule viewFunctionsIntegrity(uint256 assetId, method f) filtered { f-> f.isView &
                                 f.selector != sig:toAssetsDown(uint256,uint256,uint256).selector &&
                                 f.selector != sig:toSharesUp(uint256,uint256,uint256).selector &&
                                 f.selector != sig:toAssetsUp(uint256,uint256,uint256).selector &&
-                                f.selector != sig:getAssetSuppliedAmountUp(uint256).selector &&
                                 f.selector != sig:getUnrealizedFees(uint256).selector &&
                                 f.selector != sig:MAX_ALLOWED_UNDERLYING_DECIMALS().selector &&
                                 f.selector != sig:MAX_ALLOWED_SPOKE_CAP().selector &&
@@ -159,7 +158,7 @@ rule viewFunctionsIntegrity(uint256 assetId, method f) filtered { f-> f.isView &
     require hub._assets[assetId].lastUpdateTimestamp <= e.block.timestamp; 
     
     //requireInvariant baseDebtIndexMin(assetId); 
-    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= wadRayMath.RAY();
+    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
 
 
     accrueInterest(e, assetId);

@@ -1,14 +1,20 @@
 
-import "./symbolicRepresentation/ERC20s_CVL.spec";
-import "./symbolicRepresentation/Math_CVL.spec";
-import "./HubAdvanceSummary.spec";
-import "./libs/SharesMath.spec";
 /**
 Verify  the additivity of the operation: add, remove, draw, restore, reportDeficit, eliminateDeficit.
-For each operation, we verify that splitting an operation to two operation is less beneficial to the user than doing it in one step.
+For each operation, we verify that splitting an operation to two operations is less beneficial to the user than doing it in one step.
 
-This spec uses summarization to the shareMath library. The summarization follow the proof in ShareMath.spec.
+This spec uses summarization to the shareMath library. The summarization follow the proof in ShareMath.spec. The rules of SharesMath.spec are verified on the CVL representation.
+
+To run this spec file:
+ certoraRun certora/conf/HubAdditivity.conf 
+
 **/
+
+import "./symbolicRepresentation/ERC20s_CVL.spec";
+import "./symbolicRepresentation/Math_CVL.spec";
+//import "./HubAdvanceSummary.spec";
+import "./libs/SharesMath.spec";
+
 methods {
     function SharesMath.toSharesDown(uint256 assets, uint256 totalAssets, uint256 totalShares) internal returns (uint256) =>
             symbolic_toSharesDown(assets, totalAssets, totalShares) ;
@@ -50,7 +56,7 @@ ghost symbolic_toSharesUp(mathint /*assets*/, mathint /*totalAssets*/, mathint /
 
 
 ghost symbolic_toAssetsUp(mathint /*shares*/, mathint /*totalAssets*/, mathint /*totalShares*/) returns uint256 {
-            // monotonicity
+        // monotonicity
         axiom forall mathint x. forall mathint y. forall mathint ta. forall mathint ts. 
                 x > y => symbolic_toAssetsUp(x, ta, ts) >= symbolic_toAssetsUp(y, ta, ts);
         // additivity with respect to side effect

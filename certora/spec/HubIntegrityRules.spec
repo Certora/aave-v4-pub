@@ -1,14 +1,15 @@
+/**
+Hub verification integrity rules that verify that change is consistent.
+Accrue is assumed to be called already.
+
+To run this spec file:
+ certoraRun certora/conf/HubIntegrityRules.conf 
+**/
 
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 import "./symbolicRepresentation/Math_CVL.spec";
 import "./HubValidState.spec";
 
-
-
-/**
-Hub verification integrity rules that verify that change is consistent.
-Accrue is assumed to be called already. 
-**/
 
 /** @title Add operation increases external balances and increases internal accounting 
 while decreasing from balance */
@@ -67,7 +68,9 @@ rule restore_debtDecrease(uint256 assetId, uint256 drawnAmount, IHubBase.Premium
     requireAllInvariants(assetId,e);
     address spoke = e.msg.sender;
     uint256 beforeDebt = getSpokeTotalOwed(e, assetId, spoke);
+
     restore(e, assetId, drawnAmount, premiumDelta);
+    
     uint256 afterDebt = getSpokeTotalOwed(e, assetId, spoke);
     assert beforeDebt >= afterDebt;
 }
@@ -85,6 +88,7 @@ rule reportDeficitSameAsPreviewRestoreByAssets(uint256 assetId, uint256 drawnAmo
     assert resultReportDeficit == resultPreview;
 }
 
+/// @title only valid spoke can call the function
 rule validSpokeOnly(uint256 assetId, method f) {
     env e;
     calldataarg args;
@@ -102,4 +106,30 @@ rule validSpokeOnly(uint256 assetId, method f) {
     assert premiumShares < hub._spokes[assetId][spoke].premiumShares => active ;
     assert premiumOffsetRay < hub._spokes[assetId][spoke].premiumOffsetRay => active ;
     assert realizedPremiumRay < hub._spokes[assetId][spoke].realizedPremiumRay => active ;
+}
+
+
+/// @title spoke can not go over max allowed cap
+rule spokeMaxCap(uint256 assetId, method f)
+filtered { f -> !f.isView && 
+        f.selector != sig:addSpoke(uint256,address,IHub.SpokeConfig).selector && 
+        f.selector  != sig:updateSpokeConfig(uint256,address,IHub.SpokeConfig).selector &&
+        f.selector != sig:updateAssetConfig(uint256,IHub.AssetConfig,bytes).selector } {
+    env e;
+    calldataarg args;
+    address spoke = e.msg.sender;
+    requireAllInvariants(assetId,e);
+    require hub._assets[assetId].decimals == 1;
+    uint256 addCapBefore = hub._spokes[assetId][spoke].addCap;
+    uint256 drawCapBefore = hub._spokes[assetId][spoke].drawCap;
+    require hub._spokes[assetId][spoke].addedShares <=  addCapBefore * 10; 
+    require hub._spokes[assetId][spoke].drawnShares <=  drawCapBefore * 10; 
+    
+    require hub._assets[assetId].feeReceiver != spoke;
+    f(e,args);
+
+    uint256 addCapAfter = hub._spokes[assetId][spoke].addCap;
+    uint256 drawCapAfter = hub._spokes[assetId][spoke].drawCap;
+    assert addCapAfter == max_uint40 || hub._spokes[assetId][spoke].addedShares <=  addCapAfter * 10; 
+    assert drawCapAfter == max_uint40 || hub._spokes[assetId][spoke].drawnShares <=  drawCapAfter * 10; 
 }

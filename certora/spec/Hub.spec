@@ -1,18 +1,18 @@
 
-import "./symbolicRepresentation/ERC20s_CVL.spec";
-import "./symbolicRepresentation/Math_CVL.spec";
-import "./HubValidState.spec";
-
-
 /***
 
 Verify Hub 
 
 State changes rules in which the validate functions are ignored.
-Assuming accrue has been called before any other function.
+Assuming accrue has been called on the current block timestamp.
 
 
 ***/
+
+import "./symbolicRepresentation/ERC20s_CVL.spec";
+import "./symbolicRepresentation/Math_CVL.spec";
+import "./HubValidState.spec";
+
 methods {
     function _validateAdd(
         IHub.Asset storage asset,
@@ -37,14 +37,14 @@ methods {
         IHub.Asset storage asset,
         IHub.SpokeData storage spoke,
         uint256 drawnAmount,
-        uint256 premiumAmount
+        uint256 premiumAmountRay
     ) internal => NONDET;
 
     function _validateReportDeficit(
         IHub.Asset storage asset,
         IHub.SpokeData storage spoke,
         uint256 drawnAmount,
-        uint256 premiumAmount
+        uint256 premiumAmountRay
     ) internal => NONDET;
 
     function _validateEliminateDeficit(
@@ -102,7 +102,6 @@ filtered {
     mathint assetsAfter = getAddedAssets(e,assetId);
     mathint sharesAfter = getAddedShares(e,assetId);
 
-    // > when only considering accrue interest
     assert (assetsAfter + OneM) * (sharesBefore + OneM) >= (assetsBefore + OneM )* (sharesAfter + OneM);
 }
 
@@ -149,6 +148,7 @@ rule noChangeToOtherSpoke(address spoke, uint256 assetId, address otherSpoke, me
 /**
 @title Accrue must be called before updating shares or debt. 
 Transferring shares is safe without accrue, as it stays the same behavior 
+Also adding an asset is safe without accrue, as there is nothing to update.
 */
 rule accrueWasCalled(uint256 assetId, method f) filtered { f-> !f.isView && 
             f.selector != sig:addAsset(address,uint8,address,address,bytes).selector &&

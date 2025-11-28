@@ -1,4 +1,13 @@
 
+/***
+
+Verify Hub - valid state properties 
+Where we assume a given single drawnIndex and that accrue was called on the asset
+
+To run this spec file:
+ certoraRun certora/conf/HubValidState.conf 
+***/
+
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 import "./symbolicRepresentation/Math_CVL.spec";
 import "./HubBase.spec";
@@ -6,15 +15,8 @@ import "./HubBase.spec";
 
 using Hub as hub;
 
-/***
-
-Verify Hub - valid state properties 
-Where we assume a given single drawnIndex and that accrue was called on the asset
-
-***/
 
 methods {
-
 
     // assume that drawn rate was already updated.
     //rules concerning updateDrawnRate are in HubAccrueIntegrity.spec
@@ -22,9 +24,6 @@ methods {
         IHub.Asset storage asset,
         uint256 assetId
     ) internal => NONDET;
-
-    //rules concerning getFeeShares are in HubAccrueIntegrity.spec
-
 
     //assume a given single drawnIndex
     //rules concerning getDrawnIndex are in HubAccrueIntegrity.spec
@@ -40,11 +39,6 @@ methods {
 // assume a given single drawnIndex
 ghost uint256 cachedIndex;
 
-// track all assetsIds of the same asset 
-/// sumLiquidity[asset] is the sum of _assets[KEY uint256 assetId].liquidity  for all assetIds of asset 
-ghost mapping(address /*IERC20*/ => mathint ) sumLiquidity {
-    init_state axiom forall address X. sumLiquidity[X] == 0;
-}
 
 ghost mapping(uint256 /*assetId*/  => mapping(address /*spoke*/ => uint256 )) spokeSupplyPerAssetMirror {
     init_state axiom forall uint256 X. forall address Y. spokeSupplyPerAssetMirror[X][Y] == 0 ;
@@ -85,14 +79,6 @@ function accrueCalled() {
 } 
 
 /************ Hooks  ************/
-/// Update sumLiquidity[t] on update to availableLiquidity of assetId for token t
-hook Sstore _assets[KEY uint256 assetId].liquidity uint120 new_value (uint120 old_value) {
-    sumLiquidity[hub._assets[assetId].underlying] = sumLiquidity[hub._assets[assetId].underlying] + new_value - old_value;
-}
-
-hook Sload uint120 value _assets[KEY uint256 assetId].liquidity {
-    require sumLiquidity[hub._assets[assetId].underlying] >= value;
-}
 
 hook Sstore _assets[KEY uint256 assetId].drawnIndex uint120 new_value (uint120 old_value) {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
@@ -169,15 +155,6 @@ hook Sload uint200 value hub._spokes[KEY uint256 assetId][KEY address spoke].def
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 /**** Valid State Rules *******/
-
-invariant totalAssetsVsShares(uint256 assetId, env e) 
-    getAddedAssets(e,assetId) >=  getAddedShares(e,assetId) {
-
-        preserved with (env eInv) {
-            require eInv.block.timestamp == e.block.timestamp;
-            requireAllInvariants(assetId, e);
-        }
-    }
 
 
 definition emptyAsset(uint256 assetId) returns bool =
@@ -311,7 +288,7 @@ invariant sumOfSpokeDeficit(uint256 assetId)
 * @title drawnIndex is greater than or equal to RAY on regular assets
 **/
 invariant drawnIndexMin(uint256 assetId) 
-    assetId < hub._assetCount => hub._assets[assetId].drawnIndex >= wadRayMath.RAY()
+    assetId < hub._assetCount => hub._assets[assetId].drawnIndex >= RAY
     {
         preserved {
             address anyAsset;
@@ -323,7 +300,7 @@ invariant drawnIndexMin(uint256 assetId)
  * @title liquidityFee upper bound: config.liquidityFee must not exceed PercentageMathExtended.PERCENTAGE_FACTOR
  */
 invariant liquidityFee_upper_bound(uint256 assetId) 
-    hub._assets[assetId].liquidityFee <= wadRayMath.PERCENTAGE_FACTOR();
+    hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR;
 
 
 /**
@@ -356,6 +333,25 @@ strong invariant solvency_external(uint256 assetId )
         }
 
     }
+
+/**
+* @title the sum of added assets is greater than or equal to the sum of added shares
+*/
+invariant totalAssetsVsShares(uint256 assetId, env e) 
+    getAddedAssets(e,assetId) >=  getAddedShares(e,assetId) {
+
+        preserved with (env eInv) {
+            require eInv.block.timestamp == e.block.timestamp;
+            requireAllInvariants(assetId, e);
+        }
+    }
+
+rule totalAssetsVsShares_eliminateDeficit(uint256 assetId, uint256 amount, address spoke) {
+    env e;
+    requireAllInvariants(assetId, e);
+    eliminateDeficit(e, assetId, amount, spoke);
+    assert getAddedAssets(e,assetId) >= getAddedShares(e,assetId);
+}
 
 
 ///@title ghosts for _assetToSpokes EnumerableSet to keep track of the spokes for an asset

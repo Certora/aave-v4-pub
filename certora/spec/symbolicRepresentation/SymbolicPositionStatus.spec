@@ -1,3 +1,13 @@
+/**
+Symbolic representation of the PositionStatusMap.sol library.
+The summarization of the PositionStatus.spec library is verified to obtain the rules of the PositionStatusMap.sol library
+
+To run this spec file:
+ certoraRun certora/conf/VerifySymbolicPositionStatus.conf 
+
+
+**/
+
 methods {
     function _.setBorrowing(ISpoke.PositionStatus storage positionStatus, uint256 reserveId, bool borrowing) internal => setBorrowingCVL(reserveId, borrowing) expect void;
 
@@ -18,22 +28,22 @@ methods {
     function _.nextCollateral(ISpoke.PositionStatus storage positionStatus, uint256 startReserveId) internal => nextCollateralCVL(startReserveId) expect uint256;
 }
 
-// the user which is updated 
+///@dev the user which is updated 
+// it is safe to assume that there is only one user involved in each function call
+// see  SpokeUserIntegrity.spec rule userIntegrity
 persistent ghost address userGhost;
 
+///@dev ghost mapping of the borrowing flags for the user
 persistent ghost mapping(address /*user */ => mapping(uint256 /*reserveId*/ => bool /*borrowing*/)) isBorrowing {
     init_state axiom forall address user. forall uint256 reserveId. !isBorrowing[user][reserveId];
 
 }
 
+///@dev ghost mapping of the using as collateral flags for the user
 persistent ghost mapping(address /*user */ => mapping(uint256 /*reserveId*/ => bool /*usingAsCollateral*/)) isUsingAsCollateral {
     init_state axiom forall address user. forall uint256 reserveId. !isUsingAsCollateral[user][reserveId];
 }
 
-
-// persistent ghost mapping(address /*user */ => mapping(uint256 /*reserveId*/ => uint256 /*next*/)) prevCVL {
-//    init_state axiom forall address user. forall uint256 reserveId. prevCVL[user][reserveId] == max_uint256;
-//}
 
 
 persistent ghost uint256 reserveCountGhost {
@@ -51,9 +61,6 @@ function setBorrowingCVL(uint256 reserveId, bool borrowing) {
 }
 
 function isBorrowingCVL(uint256 reserveId) returns (bool) {
-    // add a require that our ghost is a mirror of the storage
-    // since there is no hook on ghost access we do it manually
-    // require userDrawnSharePerReserveId[userGhost][reserveId]  == spoke._userPositions[userGhost][reserveId].drawnShares;
     return isBorrowing[userGhost][reserveId];
 }
 
@@ -62,16 +69,10 @@ function setUsingAsCollateralCVL(uint256 reserveId, bool usingAsCollateral) {
         reserveCountGhost = require_uint256(usingAsCollateral ? reserveCountGhost + 1 : reserveCountGhost - 1);
     }
     isUsingAsCollateral[userGhost][reserveId] = usingAsCollateral;
-    // add a require that our ghost is a mirror of the storage
-    // since there is no hook on ghost access we do it manually
-    // require userDrawnSharePerReserveId[userGhost][reserveId]  == spoke._userPositions[userGhost][reserveId].drawnShares;
     }
 
 
 function isUsingAsCollateralCVL(uint256 reserveId) returns (bool) {
-    // add a require that our ghost is a mirror of the storage
-    // since there is no hook on ghost access we do it manually
-    // require userDrawnSharePerReserveId[userGhost][reserveId]  == spoke._userPositions[userGhost][reserveId].drawnShares;
     return isUsingAsCollateral[userGhost][reserveId];
 }
 

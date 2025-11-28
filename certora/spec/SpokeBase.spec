@@ -19,7 +19,6 @@ methods {
 
     function WadRayMathWrapper.RAY() external returns (uint256) envfree;
     function WadRayMathWrapper.WAD() external returns (uint256) envfree;
-    function WadRayMathWrapper.PERCENTAGE_FACTOR() external returns (uint256) envfree;
 
     function WadRayMath.rayMulDown(uint256 a, uint256 b) internal returns (uint256) => 
         mulDivRayDownCVL(a,b);
@@ -38,10 +37,10 @@ methods {
         mulDivDownCVL(a,wadRayMath.WAD(),b);
     
     function PercentageMath.percentMulDown(uint256 percentage, uint256 value) internal returns (uint256) =>  //identity(value);
-        mulDivDownCVL(value,percentage,wadRayMath.PERCENTAGE_FACTOR());
+        mulDivDownCVL(value,percentage,PERCENTAGE_FACTOR);
     
     function PercentageMath.percentMulUp(uint256 percentage, uint256 value) internal returns (uint256) =>  //identity(value);
-        mulDivUpCVL(value,percentage,wadRayMath.PERCENTAGE_FACTOR());
+        mulDivUpCVL(value,percentage,PERCENTAGE_FACTOR);
 
 
 
@@ -93,6 +92,10 @@ methods {
     bytes32 hash,
     bytes memory signature
   ) internal returns (bool) => NONDET ALL;
+}
+
+persistent ghost uint256 PERCENTAGE_FACTOR {
+    axiom PERCENTAGE_FACTOR == 10000;
 }
 
     function identity(uint256 value) returns (uint256) {

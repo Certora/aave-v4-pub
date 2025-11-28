@@ -57,7 +57,7 @@ rule accrueSupplyRate(uint256 assetId){
     //based on rule drawnIndex_increasing(assetId);
     require  symbolicDrawnIndex(e1.block.timestamp) <= symbolicDrawnIndex(e2.block.timestamp);
     //based on requireInvariant baseDebtIndexMin(assetId); 
-    require  symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
+    require  symbolicDrawnIndex(e1.block.timestamp) >= RAY;
 
 
     mathint assets_e1 = getAddedAssets(e1, assetId);
@@ -86,7 +86,7 @@ function setup_three_timestamps(uint256 assetId, env e1, env e2, env e3){
     require  symbolicDrawnIndex(e1.block.timestamp) <= symbolicDrawnIndex(e2.block.timestamp);
     require  symbolicDrawnIndex(e2.block.timestamp) <= symbolicDrawnIndex(e3.block.timestamp);
     //based on requireInvariant baseDebtIndexMin(assetId); 
-    require  symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
+    require  symbolicDrawnIndex(e1.block.timestamp) >= RAY;
 }
 
 

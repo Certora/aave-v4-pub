@@ -2,7 +2,6 @@
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 import "./symbolicRepresentation/Math_CVL.spec";
 
-using WadRayMathWrapper as wadRayMath;
 
 /***
 
@@ -13,62 +12,41 @@ Here we have only safe assumptions, safe summarization that are either proved in
 ***/
 
 methods {
- 
-    function WadRayMathWrapper.RAY() external returns (uint256) envfree;
-    function WadRayMathWrapper.PERCENTAGE_FACTOR() external returns (uint256) envfree;
-
-
-    function _.mulDiv(uint256 x, uint256 y, uint256 denominator) internal  => 
-        mulDivDownCVL(x,y,denominator) expect uint256;
     
     function _.mulDivDown(uint256 a, uint256 b, uint256 c) internal => 
         mulDivDownCVL(a,b,c) expect uint256;
     
     function _.mulDivUp(uint256 a, uint256 b, uint256 c) internal => 
         mulDivUpCVL(a,b,c) expect uint256;
+
+    function _.rayMulDown(uint256 a, uint256 b) internal  => 
+        mulDivRayDownCVL(a,b) expect uint256;
+
+    function _.rayMulUp(uint256 a, uint256 b) internal  => 
+        mulDivRayUpCVL(a,b) expect uint256;
     
-    function _.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) internal => 
-        mulDivCheckRounding(x,y,denominator,rounding) expect uint256;
-
-    function WadRayMathWrapper.rayMulDown(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayDownCVL(a,b);
-
-    function WadRayMath.rayMulDown(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayDownCVL(a,b);
+    function _.rayDivDown(uint256 a, uint256 b) internal  => 
+        mulDivDownCVL(a,RAY,b) expect uint256;
     
-    function WadRayMathWrapper.rayMulUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayUpCVL(a,b);    
+    function _.fromRayUp(uint256 a) internal => 
+        divRayUpCVL(a) expect uint256;
 
-    function WadRayMath.rayMulUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayUpCVL(a,b);
+    function _.toRay(uint256 a) internal => 
+        mulRayCVL(a) expect uint256;
     
-    function WadRayMathWrapper.rayDivDown(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivDownCVL(a,wadRayMath.RAY(),b);
-
-    function WadRayMath.rayDivDown(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivDownCVL(a,wadRayMath.RAY(),b);
-    
-    function WadRayMathWrapper.rayDivUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivUpCVL(a,wadRayMath.RAY(),b);
-        
-    function WadRayMath.rayDivUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivUpCVL(a,wadRayMath.RAY(),b);
-
     function _.setInterestRateData(uint256 assetId, bytes data) external => NONDET; 
 
     function _._checkCanCall(address caller, bytes calldata data) internal => NONDET; 
+    
+    function _.calculateInterestRate(uint256 assetId, uint256 liquidity, uint256 drawn, uint256 deficit, uint256 swept) external  => NONDET;
 }
 
-function mulDivCheckRounding(uint256 x, uint256 y, uint256 z, Math.Rounding rounding) returns (uint256){
-    if (rounding == Math.Rounding.Floor) {
-        return mulDivDownCVL(x,y,z);
+
+persistent ghost uint256 RAY {
+    axiom RAY == 10^27;
     }
-    else if (rounding == Math.Rounding.Ceil) {
-        return mulDivUpCVL(x,y,z);
+
+persistent ghost uint256 PERCENTAGE_FACTOR {
+    axiom PERCENTAGE_FACTOR == 10000;
     }
-    else {
-        assert false; 
-    }
-    return 0;
-}
  

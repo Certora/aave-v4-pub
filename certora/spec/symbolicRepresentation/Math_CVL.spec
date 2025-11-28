@@ -59,6 +59,24 @@ function mulDivRayUpCVL(uint256 x, uint256 y) returns uint256 {
 }
 
 
+/* 
+ b = ceil(a / RAY).
+*/
+
+function divRayUpCVL(uint256 x) returns uint256 {
+    mathint res = ((x + (10 ^ 27) - 1) / (10 ^ 27));
+    if (res > max_uint256)
+        revert();
+    return require_uint256(res); 
+}
+
+function mulRayCVL(uint256 x) returns uint256 {
+    mathint res = x * (10 ^ 27);
+    if (res > max_uint256)
+        revert();
+    return require_uint256(res);
+}
+
 ghost mulDivHalResult(uint256, uint256, uint256 ) returns uint256; 
 /*
  Returns x*y/z rounding half up

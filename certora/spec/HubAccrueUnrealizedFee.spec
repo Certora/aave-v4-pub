@@ -6,15 +6,12 @@
 import "./HubBase.spec";
 
 using HubHarness as hub;
-using MathWrapper as mathWrapper; 
 
 methods {
-
-    function MathWrapper.PERCENTAGE_FACTOR() external returns (uint256) envfree;
     function AssetLogic.getDrawnIndex(IHub.Asset storage asset) internal returns (uint256)  with (env e) => symbolicDrawnIndex(e.block.timestamp);
 
     function PercentageMath.percentMulDown(uint256 percentage, uint256 value) internal  returns (uint256) => 
-    mulDivDownCVL(value,percentage,mathWrapper.PERCENTAGE_FACTOR());
+    mulDivDownCVL(value,percentage,PERCENTAGE_FACTOR);
 }
 
 // symbolic representation of drawnIndex that is a function of the block timestamp.
@@ -32,7 +29,7 @@ rule feeAmountIncrease(uint256 assetId){
     require hub._assets[assetId].lastUpdateTimestamp!=0 && hub._assets[assetId].lastUpdateTimestamp == e1.block.timestamp; 
     require hub._assets[assetId].drawnIndex == symbolicDrawnIndex(e1.block.timestamp);
     require symbolicDrawnIndex(e1.block.timestamp) <= symbolicDrawnIndex(e2.block.timestamp);
-    require symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
+    require symbolicDrawnIndex(e1.block.timestamp) >= RAY;
     uint256 feeAssetsBefore = hub._assets[assetId].realizedFees;
     uint256 feeAssets = getUnrealizedFees(e2,assetId);
     accrueInterest(e2,assetId);
@@ -49,11 +46,11 @@ rule maxgetUnrealizedFees(uint256 assetId){
 
     require hub._assets[assetId].drawnIndex == symbolicDrawnIndex(e1.block.timestamp);
     require symbolicDrawnIndex(e1.block.timestamp) <= symbolicDrawnIndex(e2.block.timestamp);
-    require symbolicDrawnIndex(e1.block.timestamp) >= wadRayMath.RAY();
+    require symbolicDrawnIndex(e1.block.timestamp) >= RAY;
     assert getUnrealizedFees(e1,assetId) == 0 ;
 
     storage init_state = lastStorage;
-    require hub._assets[assetId].liquidityFee == mathWrapper.PERCENTAGE_FACTOR();
+    require hub._assets[assetId].liquidityFee == PERCENTAGE_FACTOR;
     uint256 feeSharesAtMax = getUnrealizedFees(e2,assetId);
 
     //assume any value that can be set in updateAssetConfig

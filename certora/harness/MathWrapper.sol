@@ -61,4 +61,12 @@ contract MathWrapper {
   function PERCENTAGE_FACTOR() public pure returns (uint256) {
     return PercentageMath.PERCENTAGE_FACTOR;
   }
+
+  function fromRayUp(uint256 a) public pure returns (uint256) {
+    return WadRayMath.fromRayUp(a);
+  }
+
+  function toRay(uint256 a) public pure returns (uint256) {
+    return WadRayMath.toRay(a);
+  }
 }

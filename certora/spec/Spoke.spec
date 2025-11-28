@@ -310,10 +310,11 @@ rule realizedPremiumRayConsistency(uint256 reserveId, address user, method f)
 https://prover.certora.com/output/40726/b077c5f4ef564ee2936a9532c6c246f8/
 */
 rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f) 
-    filtered {f -> outOfScopeFunctions(f) && !f.isView && increaseCollateralOrReduceDebtFunctions(f)} {
+    filtered {f -> !outOfScopeFunctions(f) && !f.isView && increaseCollateralOrReduceDebtFunctions(f)} {
     env e;
     setup();
     requireInvariant validReserveId_single(reserveIdUsed);
+    requireInvariant dynamicConfigKeyConsistency(reserveIdUsed,user);
     validReserveId_singleUser(reserveIdUsed, user);
     validReserveId_singleUser(spoke._reserveCount, user);
     require userGhost == user;
@@ -322,12 +323,16 @@ rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f)
     uint16 beforeCollateralFactor = spoke._dynamicConfig[reserveIdUsed][dynamicConfigKey].collateralFactor;
     require beforeUserAccountData.totalCollateralValue == 0 => beforeUserAccountData.totalDebtValue == 0;
 
-    
     calldataarg args;
     f(e, args);
+
     ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
     uint24 dynamicConfigKeyAfter = spoke._reserves[reserveIdUsed].dynamicConfigKey;
     uint16 afterCollateralFactor = spoke._dynamicConfig[reserveIdUsed][dynamicConfigKeyAfter].collateralFactor;
+    if (f.selector == sig:addDynamicReserveConfig(uint256, ISpoke.DynamicReserveConfig).selector) {
+        // assume we are working on reserveIdUsed
+        require dynamicConfigKeyAfter != dynamicConfigKey;
+    }
     require  beforeCollateralFactor > 0 => afterCollateralFactor > 0, "rule collateralFactorNotZero";
     assert afterUserAccountData.totalCollateralValue == 0 => afterUserAccountData.totalDebtValue == 0;
 }
@@ -336,14 +341,15 @@ rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f)
 rule collateralFactorNotZero(uint256 reserveId, address user, method f) filtered {f -> !outOfScopeFunctions(f) && !f.isView} {
     env e;
     setup();
+    requireInvariant dynamicConfigKeyConsistency(reserveId,user);
     validReserveId_singleUser(reserveId, user);
     require userGhost == user;
-    uint24 dynamicConfigKeyBefore = spoke._reserves[reserveId].dynamicConfigKey;
-    require spoke._dynamicConfig[reserveId][dynamicConfigKeyBefore].collateralFactor > 0;
+    uint24 dynamicConfigKey;
+    require dynamicConfigKey <= spoke._reserves[reserveId].dynamicConfigKey;
+    require spoke._dynamicConfig[reserveId][dynamicConfigKey].collateralFactor > 0;
     calldataarg args;
     f(e, args);
-    uint24 dynamicConfigKeyAfter = spoke._reserves[reserveId].dynamicConfigKey;
-    assert spoke._dynamicConfig[reserveId][dynamicConfigKeyAfter].collateralFactor > 0;
+    assert spoke._dynamicConfig[reserveId][dynamicConfigKey].collateralFactor > 0;
 }
 
 
@@ -383,6 +389,16 @@ rule deterministicUserDebtValue(uint256 reserveId, address user) {
     (drawnDebt2, premiumDebt2) = spoke.getUserDebt(e, reserveId, user);
     assert drawnDebt == drawnDebt2;
     assert premiumDebt == premiumDebt2;
+}
+
+invariant dynamicConfigKeyConsistency(uint256 reserveId, address user)
+    spoke._userPositions[user][reserveId].dynamicConfigKey <= spoke._reserves[reserveId].dynamicConfigKey
+    filtered {f -> !outOfScopeFunctions(f)}
+{
+    preserved {
+        setup();
+        requireInvariant validReserveId_single(reserveId);
+    }
 }
 
 
