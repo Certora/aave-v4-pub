@@ -65,7 +65,6 @@ interface ISpoke is ISpokeBase, IMulticall, INoncesKeyed, IAccessManaged {
 
   /// @notice User position data per reserve.
   /// @dev drawnShares The drawn shares of the user position.
-  /// @dev realizedPremiumRay The interest-free premium debt already accrued for the user position, expressed in asset units and scaled by RAY.
   /// @dev premiumShares The premium shares of the user position.
   /// @dev premiumOffsetRay The premium offset of the user position, used to calculate the premium, expressed in asset units and scaled by RAY.
   /// @dev suppliedShares The supplied shares of the user position.
@@ -74,9 +73,7 @@ interface ISpoke is ISpokeBase, IMulticall, INoncesKeyed, IAccessManaged {
     uint120 drawnShares;
     uint120 premiumShares;
     //
-    uint200 realizedPremiumRay;
-    //
-    uint200 premiumOffsetRay;
+    int200 premiumOffsetRay;
     //
     uint120 suppliedShares;
     uint24 dynamicConfigKey;
@@ -118,7 +115,7 @@ interface ISpoke is ISpokeBase, IMulticall, INoncesKeyed, IAccessManaged {
 
   /// @notice Emitted when the oracle address of the spoke is updated.
   /// @param oracle The new address of the oracle.
-  event UpdateOracle(address oracle);
+  event UpdateOracle(address indexed oracle);
 
   /// @notice Emitted when a liquidation config is updated.
   /// @param config The new liquidation config.
