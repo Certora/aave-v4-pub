@@ -11,10 +11,7 @@ import {console2 as console} from 'forge-std/console2.sol';
 
 // dependencies
 import {AggregatorV3Interface} from 'src/dependencies/chainlink/AggregatorV3Interface.sol';
-import {
-  TransparentUpgradeableProxy,
-  ITransparentUpgradeableProxy
-} from 'src/dependencies/openzeppelin/TransparentUpgradeableProxy.sol';
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from 'src/dependencies/openzeppelin/TransparentUpgradeableProxy.sol';
 import {IERC20Metadata} from 'src/dependencies/openzeppelin/IERC20Metadata.sol';
 import {SafeCast} from 'src/dependencies/openzeppelin/SafeCast.sol';
 import {IERC20Errors} from 'src/dependencies/openzeppelin/IERC20Errors.sol';
@@ -48,11 +45,7 @@ import {AccessManagerEnumerable} from 'src/access/AccessManagerEnumerable.sol';
 import {HubConfigurator, IHubConfigurator} from 'src/hub/HubConfigurator.sol';
 import {Hub, IHub, IHubBase} from 'src/hub/Hub.sol';
 import {SharesMath} from 'src/hub/libraries/SharesMath.sol';
-import {
-  AssetInterestRateStrategy,
-  IAssetInterestRateStrategy,
-  IBasicInterestRateStrategy
-} from 'src/hub/AssetInterestRateStrategy.sol';
+import {AssetInterestRateStrategy, IAssetInterestRateStrategy, IBasicInterestRateStrategy} from 'src/hub/AssetInterestRateStrategy.sol';
 
 // spoke
 import {Spoke, ISpoke, ISpokeBase} from 'src/spoke/Spoke.sol';
@@ -63,6 +56,7 @@ import {IAaveOracle} from 'src/spoke/interfaces/IAaveOracle.sol';
 import {SpokeConfigurator, ISpokeConfigurator} from 'src/spoke/SpokeConfigurator.sol';
 import {SpokeInstance} from 'src/spoke/instances/SpokeInstance.sol';
 import {PositionStatusMap} from 'src/spoke/libraries/PositionStatusMap.sol';
+import {ReserveFlags, ReserveFlagsMap} from 'src/spoke/libraries/ReserveFlagsMap.sol';
 import {LiquidationLogic} from 'src/spoke/libraries/LiquidationLogic.sol';
 import {KeyValueList} from 'src/spoke/libraries/KeyValueList.sol';
 
@@ -95,6 +89,7 @@ abstract contract Base is Test {
   using PercentageMath for uint256;
   using SafeCast for *;
   using MathUtils for uint256;
+  using ReserveFlagsMap for ReserveFlags;
 
   bytes32 internal constant ERC1967_ADMIN_SLOT =
     0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
@@ -257,6 +252,7 @@ abstract contract Base is Test {
     bool paused;
     bool frozen;
     bool borrowable;
+    bool receiveSharesEnabled;
     uint24 collateralRisk;
   }
 
@@ -592,6 +588,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 15_00
     });
     spokeInfo[spoke1].weth.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -603,6 +600,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 15_00
     });
     spokeInfo[spoke1].wbtc.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -614,6 +612,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 20_00
     });
     spokeInfo[spoke1].dai.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -625,6 +624,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 50_00
     });
     spokeInfo[spoke1].usdx.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -636,6 +636,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 50_00
     });
     spokeInfo[spoke1].usdy.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -691,6 +692,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 0
     });
     spokeInfo[spoke2].wbtc.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -702,6 +704,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 10_00
     });
     spokeInfo[spoke2].weth.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -713,6 +716,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 20_00
     });
     spokeInfo[spoke2].dai.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -724,6 +728,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 50_00
     });
     spokeInfo[spoke2].usdx.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -735,6 +740,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 50_00
     });
     spokeInfo[spoke2].usdy.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -746,6 +752,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 100_00
     });
     spokeInfo[spoke2].usdz.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -809,6 +816,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 0
     });
     spokeInfo[spoke3].dai.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -820,6 +828,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 10_00
     });
     spokeInfo[spoke3].usdx.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -831,6 +840,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 20_00
     });
     spokeInfo[spoke3].weth.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -842,6 +852,7 @@ abstract contract Base is Test {
       paused: false,
       frozen: false,
       borrowable: true,
+      receiveSharesEnabled: true,
       collateralRisk: 50_00
     });
     spokeInfo[spoke3].wbtc.dynReserveConfig = ISpoke.DynamicReserveConfig({
@@ -1068,6 +1079,20 @@ abstract contract Base is Test {
   ) internal pausePrank {
     ISpoke.ReserveConfig memory config = spoke.getReserveConfig(reserveId);
     config.paused = paused;
+
+    vm.prank(SPOKE_ADMIN);
+    spoke.updateReserveConfig(reserveId, config);
+
+    assertEq(spoke.getReserveConfig(reserveId), config);
+  }
+
+  function _updateReserveReceiveSharesEnabledFlag(
+    ISpoke spoke,
+    uint256 reserveId,
+    bool receiveSharesEnabled
+  ) internal pausePrank {
+    ISpoke.ReserveConfig memory config = spoke.getReserveConfig(reserveId);
+    config.receiveSharesEnabled = receiveSharesEnabled;
 
     vm.prank(SPOKE_ADMIN);
     spoke.updateReserveConfig(reserveId, config);
@@ -2364,6 +2389,7 @@ abstract contract Base is Test {
     assertEq(a.paused, b.paused, 'paused');
     assertEq(a.frozen, b.frozen, 'frozen');
     assertEq(a.borrowable, b.borrowable, 'borrowable');
+    assertEq(a.receiveSharesEnabled, b.receiveSharesEnabled, 'receiveSharesEnabled');
     assertEq(a.collateralRisk, b.collateralRisk, 'collateralRisk');
     assertEq(abi.encode(a), abi.encode(b));
   }
@@ -2711,9 +2737,10 @@ abstract contract Base is Test {
         assetId: reserve.assetId,
         decimals: reserve.decimals,
         dynamicConfigKey: reserve.dynamicConfigKey,
-        paused: reserve.paused,
-        frozen: reserve.frozen,
-        borrowable: reserve.borrowable,
+        paused: reserve.flags.paused(),
+        frozen: reserve.flags.frozen(),
+        borrowable: reserve.flags.borrowable(),
+        receiveSharesEnabled: reserve.flags.receiveSharesEnabled(),
         collateralRisk: reserve.collateralRisk
       });
   }

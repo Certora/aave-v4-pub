@@ -5,9 +5,7 @@ pragma solidity 0.8.28;
 import {SafeCast} from 'src/dependencies/openzeppelin/SafeCast.sol';
 import {IERC20Permit} from 'src/dependencies/openzeppelin/IERC20Permit.sol';
 import {SignatureChecker} from 'src/dependencies/openzeppelin/SignatureChecker.sol';
-import {
-  AccessManagedUpgradeable
-} from 'src/dependencies/openzeppelin-upgradeable/AccessManagedUpgradeable.sol';
+import {AccessManagedUpgradeable} from 'src/dependencies/openzeppelin-upgradeable/AccessManagedUpgradeable.sol';
 import {SafeTransferLib} from 'src/dependencies/solady/SafeTransferLib.sol';
 import {EIP712} from 'src/dependencies/solady/EIP712.sol';
 import {MathUtils} from 'src/libraries/math/MathUtils.sol';
@@ -16,6 +14,7 @@ import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
 import {KeyValueList} from 'src/spoke/libraries/KeyValueList.sol';
 import {LiquidationLogic} from 'src/spoke/libraries/LiquidationLogic.sol';
 import {PositionStatusMap} from 'src/spoke/libraries/PositionStatusMap.sol';
+import {ReserveFlags, ReserveFlagsMap} from 'src/spoke/libraries/ReserveFlagsMap.sol';
 import {UserPositionDebt} from 'src/spoke/libraries/UserPositionDebt.sol';
 import {NoncesKeyed} from 'src/utils/NoncesKeyed.sol';
 import {Multicall} from 'src/utils/Multicall.sol';
@@ -36,6 +35,7 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
   using KeyValueList for KeyValueList.List;
   using LiquidationLogic for *;
   using PositionStatusMap for *;
+  using ReserveFlagsMap for ReserveFlags;
   using UserPositionDebt for ISpoke.UserPosition;
 
   /// @inheritdoc ISpoke
@@ -149,10 +149,13 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
       assetId: assetId.toUint16(),
       decimals: decimals,
       dynamicConfigKey: dynamicConfigKey,
-      paused: config.paused,
-      frozen: config.frozen,
-      borrowable: config.borrowable,
-      collateralRisk: config.collateralRisk
+      collateralRisk: config.collateralRisk,
+      flags: ReserveFlagsMap.create({
+        initPaused: config.paused,
+        initFrozen: config.frozen,
+        initBorrowable: config.borrowable,
+        initReceiveSharesEnabled: config.receiveSharesEnabled
+      })
     });
     _dynamicConfig[reserveId][dynamicConfigKey] = dynamicConfig;
     _reserveExists[hub][assetId] = true;
@@ -171,10 +174,13 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
   ) external restricted {
     Reserve storage reserve = _getReserve(reserveId);
     _validateReserveConfig(config);
-    reserve.paused = config.paused;
-    reserve.frozen = config.frozen;
-    reserve.borrowable = config.borrowable;
     reserve.collateralRisk = config.collateralRisk;
+    reserve.flags = ReserveFlagsMap.create({
+      initPaused: config.paused,
+      initFrozen: config.frozen,
+      initBorrowable: config.borrowable,
+      initReceiveSharesEnabled: config.receiveSharesEnabled
+    });
     emit UpdateReserveConfig(reserveId, config);
   }
 
@@ -226,7 +232,7 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
   ) external onlyPositionManager(onBehalfOf) returns (uint256, uint256) {
     Reserve storage reserve = _getReserve(reserveId);
     UserPosition storage userPosition = _userPositions[onBehalfOf][reserveId];
-    _validateSupply(reserve);
+    _validateSupply(reserve.flags);
 
     reserve.underlying.safeTransferFrom(msg.sender, address(reserve.hub), amount);
     uint256 suppliedShares = reserve.hub.add(reserve.assetId, amount);
@@ -245,7 +251,7 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
   ) external onlyPositionManager(onBehalfOf) returns (uint256, uint256) {
     Reserve storage reserve = _getReserve(reserveId);
     UserPosition storage userPosition = _userPositions[onBehalfOf][reserveId];
-    _validateWithdraw(reserve);
+    _validateWithdraw(reserve.flags);
     IHubBase hub = reserve.hub;
     uint256 assetId = reserve.assetId;
 
@@ -276,7 +282,7 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
     Reserve storage reserve = _getReserve(reserveId);
     UserPosition storage userPosition = _userPositions[onBehalfOf][reserveId];
     PositionStatus storage positionStatus = _positionStatus[onBehalfOf];
-    _validateBorrow(reserve);
+    _validateBorrow(reserve.flags);
     IHubBase hub = reserve.hub;
 
     uint256 drawnShares = hub.draw(reserve.assetId, amount, msg.sender);
@@ -301,7 +307,7 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
   ) external onlyPositionManager(onBehalfOf) returns (uint256, uint256) {
     Reserve storage reserve = _getReserve(reserveId);
     UserPosition storage userPosition = _userPositions[onBehalfOf][reserveId];
-    _validateRepay(reserve);
+    _validateRepay(reserve.flags);
 
     uint256 drawnIndex = reserve.hub.getAssetDrawnIndex(reserve.assetId);
     (uint256 drawnDebtRestored, uint256 premiumDebtRayRestored) = userPosition
@@ -393,7 +399,7 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
     bool usingAsCollateral,
     address onBehalfOf
   ) external onlyPositionManager(onBehalfOf) {
-    _validateSetUsingAsCollateral(_getReserve(reserveId), usingAsCollateral);
+    _validateSetUsingAsCollateral(_getReserve(reserveId).flags, usingAsCollateral);
     PositionStatus storage positionStatus = _positionStatus[onBehalfOf];
 
     if (positionStatus.isUsingAsCollateral(reserveId) == usingAsCollateral) {
@@ -540,10 +546,11 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
     Reserve storage reserve = _getReserve(reserveId);
     return
       ReserveConfig({
-        paused: reserve.paused,
-        frozen: reserve.frozen,
-        borrowable: reserve.borrowable,
-        collateralRisk: reserve.collateralRisk
+        collateralRisk: reserve.collateralRisk,
+        paused: reserve.flags.paused(),
+        frozen: reserve.flags.frozen(),
+        borrowable: reserve.flags.borrowable(),
+        receiveSharesEnabled: reserve.flags.receiveSharesEnabled()
       });
   }
 
@@ -893,33 +900,30 @@ abstract contract Spoke is ISpoke, Multicall, NoncesKeyed, AccessManagedUpgradea
     _validateDynamicReserveConfig(newConfig);
   }
 
-  function _validateSupply(Reserve storage reserve) internal view {
-    require(!reserve.paused, ReservePaused());
-    require(!reserve.frozen, ReserveFrozen());
+  function _validateSupply(ReserveFlags flags) internal pure {
+    require(!flags.paused(), ReservePaused());
+    require(!flags.frozen(), ReserveFrozen());
   }
 
-  function _validateWithdraw(Reserve storage reserve) internal view {
-    require(!reserve.paused, ReservePaused());
+  function _validateWithdraw(ReserveFlags flags) internal pure {
+    require(!flags.paused(), ReservePaused());
   }
 
-  function _validateBorrow(Reserve storage reserve) internal view {
-    require(!reserve.paused, ReservePaused());
-    require(!reserve.frozen, ReserveFrozen());
-    require(reserve.borrowable, ReserveNotBorrowable());
+  function _validateBorrow(ReserveFlags flags) internal pure {
+    require(!flags.paused(), ReservePaused());
+    require(!flags.frozen(), ReserveFrozen());
+    require(flags.borrowable(), ReserveNotBorrowable());
     // health factor is checked at the end of borrow action
   }
 
-  function _validateRepay(Reserve storage reserve) internal view {
-    require(!reserve.paused, ReservePaused());
+  function _validateRepay(ReserveFlags flags) internal pure {
+    require(!flags.paused(), ReservePaused());
   }
 
-  function _validateSetUsingAsCollateral(
-    Reserve storage reserve,
-    bool usingAsCollateral
-  ) internal view {
-    require(!reserve.paused, ReservePaused());
+  function _validateSetUsingAsCollateral(ReserveFlags flags, bool usingAsCollateral) internal pure {
+    require(!flags.paused(), ReservePaused());
     // can disable as collateral if the reserve is frozen
-    require(!usingAsCollateral || !reserve.frozen, ReserveFrozen());
+    require(!usingAsCollateral || !flags.frozen(), ReserveFrozen());
   }
 
   /// @notice Returns whether `manager` is active & approved positionManager for `user`.

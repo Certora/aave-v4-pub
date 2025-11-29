@@ -9,6 +9,7 @@ contract SpokeBase is Base {
   using PercentageMath for *;
   using WadRayMath for *;
   using KeyValueList for KeyValueList.List;
+  using ReserveFlagsMap for ReserveFlags;
 
   struct TestData {
     SpokePosition data;
@@ -695,9 +696,14 @@ contract SpokeBase is Base {
     assertEq(a.assetId, b.assetId, 'asset Id');
     assertEq(a.decimals, b.decimals, 'decimals');
     assertEq(a.dynamicConfigKey, b.dynamicConfigKey, 'dynamicConfigKey');
-    assertEq(a.paused, b.paused, 'paused');
-    assertEq(a.frozen, b.frozen, 'frozen');
-    assertEq(a.borrowable, b.borrowable, 'borrowable');
+    assertEq(a.flags.paused(), b.flags.paused(), 'paused');
+    assertEq(a.flags.frozen(), b.flags.frozen(), 'frozen');
+    assertEq(a.flags.borrowable(), b.flags.borrowable(), 'borrowable');
+    assertEq(
+      a.flags.receiveSharesEnabled(),
+      b.flags.receiveSharesEnabled(),
+      'receiveSharesEnabled'
+    );
     assertEq(a.collateralRisk, b.collateralRisk, 'collateralRisk');
     assertEq(abi.encode(a), abi.encode(b)); // sanity check
   }

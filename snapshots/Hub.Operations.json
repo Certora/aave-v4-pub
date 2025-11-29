@@ -1,6 +1,6 @@
 {
   "add": "87869",
-  "add: with transfer": "109515",
+  "add: with transfer": "109476",
   "draw": "105666",
   "eliminateDeficit: full": "59781",
   "eliminateDeficit: partial": "69429",
@@ -11,8 +11,8 @@
   "remove: partial": "81375",
   "reportDeficit": "115225",
   "restore: full": "80334",
-  "restore: full - with transfer": "173279",
+  "restore: full - with transfer": "173240",
   "restore: partial": "89000",
-  "restore: partial - with transfer": "147302",
+  "restore: partial - with transfer": "147263",
   "transferShares": "71192"
 }
