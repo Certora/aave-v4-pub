@@ -3,7 +3,7 @@
 pragma solidity ^0.8.20;
 
 import {SafeCast} from 'src/dependencies/openzeppelin/SafeCast.sol';
-import {SafeTransferLib} from 'src/dependencies/solady/SafeTransferLib.sol';
+import {SafeERC20, IERC20} from 'src/dependencies/openzeppelin/SafeERC20.sol';
 import {MathUtils} from 'src/libraries/math/MathUtils.sol';
 import {PercentageMath} from 'src/libraries/math/PercentageMath.sol';
 import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
@@ -19,7 +19,7 @@ import {ISpoke, ISpokeBase} from 'src/spoke/interfaces/ISpoke.sol';
 /// @notice Implements the logic for liquidations.
 library LiquidationLogic {
   using SafeCast for *;
-  using SafeTransferLib for address;
+  using SafeERC20 for IERC20;
   using MathUtils for *;
   using PercentageMath for uint256;
   using WadRayMath for uint256;
@@ -331,7 +331,7 @@ library LiquidationLogic {
       restoredPremiumRay: premiumDebtToLiquidateRay
     });
 
-    debtReserve.underlying.safeTransferFrom(
+    IERC20(debtReserve.underlying).safeTransferFrom(
       params.liquidator,
       address(debtReserve.hub),
       params.debtToLiquidate
