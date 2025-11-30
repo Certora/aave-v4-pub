@@ -33,6 +33,9 @@ methods {
 
     function _.toRay(uint256 a) internal => 
         mulRayCVL(a) expect uint256;
+
+    function PercentageMath.percentMulDown(uint256 percentage, uint256 value) internal returns (uint256) =>  
+        mulDivDownCVL(value,percentage,PERCENTAGE_FACTOR);
     
     function _.setInterestRateData(uint256 assetId, bytes data) external => NONDET; 
 

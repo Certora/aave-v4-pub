@@ -71,10 +71,6 @@ hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffse
 }
 
 
-}
-
-
-
 
 
 invariant userDrawnShareConsistency(uint256 reserveId, uint256 assetId_) 

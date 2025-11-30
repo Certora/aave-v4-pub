@@ -8,8 +8,8 @@ env:
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf
     certora/conf/Hub.conf --exclude_rule noChangeToOtherSpoke supplyExchangeRateIsMonotonic
-    #certora/conf/HubValidState.conf --rule supplyExchangeRateIsMonotonic
-    certora/conf/HubValidState.conf --rule noChangeToOtherSpoke
+    #certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
+    certora/conf/Hub.conf --rule noChangeToOtherSpoke
     certora/conf/HubAdditivity.conf
     certora/conf/HubAccrueIntegrity.conf
     certora/conf/HubAccrueUnrealizedFee.conf
