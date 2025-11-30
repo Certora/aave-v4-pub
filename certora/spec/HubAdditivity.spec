@@ -12,7 +12,6 @@ To run this spec file:
 
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 import "./symbolicRepresentation/Math_CVL.spec";
-//import "./HubAdvanceSummary.spec";
 import "./libs/SharesMath.spec";
 
 methods {
@@ -154,8 +153,7 @@ rule restoreAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, addres
     IHubBase.PremiumDelta premiumDeltaY;       
     IHubBase.PremiumDelta premiumDeltaXY;
     require premiumDeltaXY.sharesDelta == premiumDeltaX.sharesDelta + premiumDeltaY.sharesDelta;
-    require premiumDeltaXY.offsetDeltaRay == premiumDeltaX.offsetDeltaRay + premiumDeltaY.offsetDeltaRay;
-    require premiumDeltaXY.accruedPremiumRay == premiumDeltaX.accruedPremiumRay + premiumDeltaY.accruedPremiumRay;
+    require premiumDeltaXY.offsetRayDelta == premiumDeltaX.offsetRayDelta + premiumDeltaY.offsetRayDelta;
     require premiumDeltaXY.restoredPremiumRay == premiumDeltaX.restoredPremiumRay + premiumDeltaY.restoredPremiumRay;
     
     restore(e, assetId, amountX, premiumDeltaX);
@@ -181,8 +179,7 @@ rule reportDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amountY) 
     IHubBase.PremiumDelta premiumDeltaXY;
 
     require premiumDeltaXY.sharesDelta == premiumDeltaX.sharesDelta + premiumDeltaY.sharesDelta;
-    require premiumDeltaXY.offsetDeltaRay == premiumDeltaX.offsetDeltaRay + premiumDeltaY.offsetDeltaRay;
-    require premiumDeltaXY.accruedPremiumRay == premiumDeltaX.accruedPremiumRay + premiumDeltaY.accruedPremiumRay;
+    require premiumDeltaXY.offsetRayDelta == premiumDeltaX.offsetRayDelta + premiumDeltaY.offsetRayDelta;
     require premiumDeltaXY.restoredPremiumRay == premiumDeltaX.restoredPremiumRay + premiumDeltaY.restoredPremiumRay;
 
     reportDeficit(e, assetId, amountX, premiumDeltaX);

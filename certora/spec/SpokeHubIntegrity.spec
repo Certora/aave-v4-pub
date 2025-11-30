@@ -66,25 +66,11 @@ ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserPremiumOffsetP
 }
 
 // Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay uint200 newValue (uint200 oldValue) {
-    sumUserPremiumOffsetPerReserveId[reserveId] = sumUserPremiumOffsetPerReserveId[reserveId] + newValue - oldValue;
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay int200 newValue (int200 oldValue) {
+    sumUserPremiumOffsetPerReserveId[reserveId] = sumUserPremiumOffsetPerReserveId[reserveId] + to_mathint(newValue) - to_mathint(oldValue);
 }
 
-hook Sload uint200 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay {
-    require sumUserPremiumOffsetPerReserveId[reserveId] >= value;
-}
 
-ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserRealizedPremiumPerReserveId {
-    init_state axiom forall uint256 reserveId. sumUserRealizedPremiumPerReserveId[reserveId] == 0;
-}
-
-// Hook on sstore and sload to synchronize the ghost with storage changes
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].realizedPremiumRay uint200 newValue (uint200 oldValue) {
-    sumUserRealizedPremiumPerReserveId[reserveId] = sumUserRealizedPremiumPerReserveId[reserveId] + newValue - oldValue;
-}
-
-hook Sload uint200 value _userPositions[KEY address user][KEY uint256 reserveId].realizedPremiumRay {
-    require sumUserRealizedPremiumPerReserveId[reserveId] >= value;
 }
 
 
@@ -161,7 +147,7 @@ invariant userPremiumOffsetConsistency(uint256 reserveId, uint256 assetId_)
             safeAssumptions();
         }
     }
-
+/*
 invariant userRealizedPremiumConsistency(uint256 reserveId, uint256 assetId_) 
     sumUserRealizedPremiumPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].realizedPremiumRay &&
     ( reserveId >= spoke._reserveCount => 
@@ -181,7 +167,7 @@ invariant userRealizedPremiumConsistency(uint256 reserveId, uint256 assetId_)
             safeAssumptions();
         }
     }
-
+*/
 // this does not pass because of the fee receiver check and the transferFeeShares which might lock shares
 invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_) 
     sumUserSuppliedSharesPerReserveId[reserveId] <= hub._spokes[spoke._reserves[reserveId].assetId][spoke].addedShares
@@ -207,7 +193,7 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
 
 
 
-
+/*
 //todo - check this violation, seems that debt can increse a bit no health check
 //https://prover.certora.com/output/40726/7b75b670ab0b4dc099147c08e2b33527/ 
 rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
@@ -229,14 +215,15 @@ rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
 
 }
 
+*/
 
 rule checkRepay_zeroDebt(uint256 reserveId, uint256 amount, address user) {
     env e;
-    require spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 && spoke._userPositions[user][reserveId].realizedPremiumRay == 0);
+    require spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0);
 
     spoke.repay(e, reserveId, amount, user);
 
-    assert spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 && spoke._userPositions[user][reserveId].realizedPremiumRay == 0);
+    assert spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0);
 }
 
 function safeAssumptions() {
@@ -260,7 +247,6 @@ function safeAssumptions() {
         hub._assets[assetId].drawnShares == 0 &&
         hub._assets[assetId].premiumShares == 0 &&
         hub._assets[assetId].premiumOffsetRay == 0 &&
-        hub._assets[assetId].realizedPremiumRay == 0 &&
         hub._assets[assetId].drawnIndex == 0 &&
         hub._assets[assetId].drawnRate == 0 &&
         hub._assets[assetId].lastUpdateTimestamp == 0 &&
@@ -268,7 +254,6 @@ function safeAssumptions() {
         hub._spokes[assetId][spoke].drawnShares == 0 &&
         hub._spokes[assetId][spoke].premiumShares == 0  &&
         hub._spokes[assetId][spoke].premiumOffsetRay == 0 &&
-        hub._spokes[assetId][spoke].realizedPremiumRay == 0 &&
         !hub._spokes[assetId][spoke].active
         );
 

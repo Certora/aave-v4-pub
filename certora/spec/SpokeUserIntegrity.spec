@@ -76,11 +76,11 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
     checkAndSetUser(user);
 }   
 
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay uint200 newValue (uint200 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay int200 newValue (int200 oldValue) {
     checkAndSetUser(user);
 }
 
-hook Sload uint200 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay {
+hook Sload int200 value _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay {
     checkAndSetUser(user);
 }
 

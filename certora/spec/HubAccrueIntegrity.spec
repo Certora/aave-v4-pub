@@ -61,7 +61,6 @@ definition emptyAsset(uint256 assetId) returns bool =
         hub._assets[assetId].swept == 0 &&
         hub._assets[assetId].premiumShares == 0 &&
         hub._assets[assetId].premiumOffsetRay == 0 &&
-        hub._assets[assetId].realizedPremiumRay == 0 &&
         hub._assets[assetId].drawnShares == 0 &&
         hub._assets[assetId].drawnIndex == 0 &&
         hub._assets[assetId].drawnRate == 0 &&
@@ -70,8 +69,7 @@ definition emptyAsset(uint256 assetId) returns bool =
             hub._spokes[assetId][spoke].addedShares == 0 &&
             hub._spokes[assetId][spoke].drawnShares == 0 &&
             hub._spokes[assetId][spoke].premiumShares == 0  &&
-            hub._spokes[assetId][spoke].premiumOffsetRay == 0 &&
-            hub._spokes[assetId][spoke].realizedPremiumRay == 0 
+            hub._spokes[assetId][spoke].premiumOffsetRay == 0 
         ) && 
         hub._assets[assetId].underlying == 0;
 
@@ -93,9 +91,9 @@ rule baseDebtIndex_increasing(uint256 assetId) {
     accrueInterest(e,assetId);
     
     assert hub._assets[assetId].drawnIndex >= before;
-    // if the debt is all realized premium, then the drawnIndex should not increase
+    // if there is debt  then the drawnIndex should not increase
     assert (hub._assets[assetId].drawnRate >= mathWrapper.SECONDS_PER_YEAR() 
-            && baseDebt > hub._assets[assetId].realizedPremiumRay) =>
+            && baseDebt > -hub._assets[assetId].premiumOffsetRay) =>
              hub._assets[assetId].drawnIndex > before;
     satisfy hub._assets[assetId].drawnRate == mathWrapper.SECONDS_PER_YEAR();
 }
@@ -240,14 +238,14 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
         return getAssetDrawnShares(e, args);
     }
     else if (f.selector == sig:getAssetPremiumData(uint256).selector) {
-        uint256 a; uint256 b; uint256 c; 
-        (a, b, c) = getAssetPremiumData(e, args); 
-        return a + b + c;
+        uint256 a; int256 b; 
+        (a, b) = getAssetPremiumData(e, args); 
+        return a + to_mathint(b);
     }
     else if (f.selector == sig:getSpokePremiumData(uint256,address).selector) {
-        uint256 a; uint256 b; uint256 c; 
-        (a, b, c) = getSpokePremiumData(e, args); 
-        return a + b + c;
+        uint256 a; int256 b; 
+        (a, b) = getSpokePremiumData(e, args); 
+        return a + to_mathint(b);
     }
     else if (f.selector == sig:getAssetPremiumRay(uint256).selector) {
         return getAssetPremiumRay(e, args);

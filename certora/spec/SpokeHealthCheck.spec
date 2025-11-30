@@ -26,7 +26,7 @@ hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumShare
     needHealthCheck(user);
 }
    
-hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay uint200 newValue (uint200 oldValue) {
+hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffsetRay int200 newValue (int200 oldValue) {
     needHealthCheck(user);
 }
 

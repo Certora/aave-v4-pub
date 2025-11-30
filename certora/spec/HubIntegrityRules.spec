@@ -96,16 +96,14 @@ rule validSpokeOnly(uint256 assetId, method f) {
     uint256 drawnShares = hub._spokes[assetId][spoke].drawnShares;
     uint256 addedShares = hub._spokes[assetId][spoke].addedShares;
     uint256 premiumShares = hub._spokes[assetId][spoke].premiumShares;
-    uint256 premiumOffsetRay = hub._spokes[assetId][spoke].premiumOffsetRay;
-    uint256 realizedPremiumRay = hub._spokes[assetId][spoke].realizedPremiumRay;
+    int200 premiumOffsetRay = hub._spokes[assetId][spoke].premiumOffsetRay;
     
     bool active = hub._spokes[assetId][spoke].active;
     f(e,args);
     assert drawnShares < hub._spokes[assetId][spoke].drawnShares => active ;
     assert addedShares < hub._spokes[assetId][spoke].addedShares => active ;
     assert premiumShares < hub._spokes[assetId][spoke].premiumShares => active ;
-    assert premiumOffsetRay < hub._spokes[assetId][spoke].premiumOffsetRay => active ;
-    assert realizedPremiumRay < hub._spokes[assetId][spoke].realizedPremiumRay => active ;
+    assert premiumOffsetRay != hub._spokes[assetId][spoke].premiumOffsetRay => active ;
 }
 
 

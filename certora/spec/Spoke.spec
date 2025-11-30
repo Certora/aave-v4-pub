@@ -178,9 +178,8 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> !outOfScop
     bool beforePositionStatus_borrowing = isBorrowing[user][reserveId];
     bool beforePositionStatus_usingAsCollateral = isUsingAsCollateral[user][reserveId];
     uint120 beforeUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint200 beforeUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay; 
     uint120 beforeUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
-    uint200 beforeUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
+    int200 beforeUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
     uint120 beforeUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
     uint24 beforeUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     // Execute the operation 
@@ -191,17 +190,15 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> !outOfScop
     bool afterPositionStatus_borrowing = isBorrowing[user][reserveId];
     bool afterPositionStatus_usingAsCollateral = isUsingAsCollateral[user][reserveId];
     uint120 afterUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint200 afterUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay;
     uint120 afterUserPosition_premiumShares = spoke._userPositions[user][reserveId].premiumShares;
-    uint200 afterUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
+    int200 afterUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
     uint120 afterUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
     uint24 afterUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
     
     assert beforePositionStatus_borrowing == afterPositionStatus_borrowing || 
-    (beforePositionStatus_borrowing && !afterPositionStatus_borrowing && afterUserPosition_drawnShares == 0 && afterUserPosition_realizedPremiumRay == 0 && afterUserPosition_premiumShares == 0 && afterUserPosition_premiumOffsetRay == 0);
+    (beforePositionStatus_borrowing && !afterPositionStatus_borrowing && afterUserPosition_drawnShares == 0 && afterUserPosition_premiumShares == 0 && afterUserPosition_premiumOffsetRay == 0);
     assert beforePositionStatus_usingAsCollateral == afterPositionStatus_usingAsCollateral;
     assert beforeUserPosition_drawnShares >= afterUserPosition_drawnShares;
-    assert beforeUserPosition_realizedPremiumRay >= afterUserPosition_realizedPremiumRay;
     assert beforeUserPosition_premiumShares >= afterUserPosition_premiumShares;
     assert beforeUserPosition_premiumOffsetRay >= afterUserPosition_premiumOffsetRay;
     assert beforeUserPosition_suppliedShares <= afterUserPosition_suppliedShares;
@@ -214,7 +211,7 @@ use invariant isBorrowingIFFdrawnShares;
 
 
 invariant drawnSharesZero(address user, uint256 reserveId) 
-    spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 && spoke._userPositions[user][reserveId].realizedPremiumRay == 0) 
+    spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0) 
     filtered {f -> !outOfScopeFunctions(f) && 
     // repay is proved in SpokeHubIntegrity.spec
     f.selector != sig:repay(uint256, uint256, address).selector
@@ -245,9 +242,7 @@ invariant validReserveId_single(uint256 reserveId)
     // no supplied or drawn shares
     && spoke._userPositions[user][reserveId].suppliedShares == 0 && spoke._userPositions[user][reserveId].drawnShares == 0 &&
     // no premium shares or offset
-    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
-    // no realized premium
-    spoke._userPositions[user][reserveId].realizedPremiumRay == 0 ))
+    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 ))
 
     filtered {f -> !outOfScopeFunctions(f)}
     {
@@ -273,9 +268,7 @@ function validReserveId_singleUser(uint256 reserveId, address user)  {
     // no supplied or drawn shares
     && spoke._userPositions[user][reserveId].suppliedShares == 0 && spoke._userPositions[user][reserveId].drawnShares == 0 &&
     // no premium shares or offset
-    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
-    // no realized premium
-    spoke._userPositions[user][reserveId].realizedPremiumRay == 0 );
+    spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 );
 }
 
 
@@ -298,10 +291,10 @@ rule realizedPremiumRayConsistency(uint256 reserveId, address user, method f)
     setup();
     requireInvariant validReserveId_single(reserveId);
     require userGhost == user;
-    require spoke._userPositions[user][reserveId].realizedPremiumRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
+    require spoke._userPositions[user][reserveId].premiumOffsetRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
     calldataarg args;
     f(e, args);
-    assert spoke._userPositions[user][reserveId].realizedPremiumRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
+    assert spoke._userPositions[user][reserveId].premiumOffsetRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
 }
 
 
@@ -369,8 +362,6 @@ forall uint256 reserveId. forall address user.
     && spoke._userPositions[user][reserveId].suppliedShares == 0 && spoke._userPositions[user][reserveId].drawnShares == 0 &&
     // no premium shares or offset
     spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
-    // no realized premium
-    spoke._userPositions[user][reserveId].realizedPremiumRay == 0 &&
 
     // has no underlying, hub, assetId
     spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 )))
