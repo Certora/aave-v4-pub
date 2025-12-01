@@ -25,9 +25,8 @@ env:
     certora/conf/SpokeWithHub.conf --rule userDrawnShareConsistency 
     certora/conf/SpokeWithHub.conf --rule userPremiumShareConsistency 
     certora/conf/SpokeWithHub.conf --rule userPremiumOffsetConsistency 
-    certora/conf/SpokeWithHub.conf --rule userRealizedPremiumConsistency
     certora/conf/SpokeWithHub.conf --rule userSuppliedShareConsistency
-    certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency userRealizedPremiumConsistency userSuppliedShareConsistency
+    certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency  userSuppliedShareConsistency
 
 on:
   pull_request:
