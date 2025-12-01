@@ -76,9 +76,6 @@ methods {
     // Note: _calculateLiquidationAmounts is summarized in SpokeUserIntegrity.spec
     // Cannot use NONDET with struct return types, so summary is handled elsewhere 
 
-    // here we assume this has not change anything 
-    // todo - can be checked independently 
-    function Spoke._notifyRiskPremiumUpdate(address user, uint256 newUserRiskPremium) internal => NONDET ALL;
 
     function AuthorityUtils.canCallWithDelay(
     address authority,

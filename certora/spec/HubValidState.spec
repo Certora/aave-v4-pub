@@ -310,7 +310,7 @@ strong invariant solvency_external(uint256 assetId )
 */
 invariant totalAssetsVsShares(uint256 assetId, env e) 
     getAddedAssets(e,assetId) >=  getAddedShares(e,assetId) 
-    filtered { f-> f.selector != sig:eliminateDeficit(env,uint256,uint256,address).selector }{
+    filtered { f-> f.selector != sig:eliminateDeficit(uint256,uint256,address).selector }{
 
         preserved with (env eInv) {
             require eInv.block.timestamp == e.block.timestamp;

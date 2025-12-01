@@ -10,8 +10,6 @@ using HubHarness as hub;
 methods {
     function AssetLogic.getDrawnIndex(IHub.Asset storage asset) internal returns (uint256)  with (env e) => symbolicDrawnIndex(e.block.timestamp);
 
-    function PercentageMath.percentMulDown(uint256 percentage, uint256 value) internal  returns (uint256) => 
-    mulDivDownCVL(value,percentage,PERCENTAGE_FACTOR);
 }
 
 // symbolic representation of drawnIndex that is a function of the block timestamp.

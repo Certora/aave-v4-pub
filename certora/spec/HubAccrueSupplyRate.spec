@@ -4,10 +4,7 @@
 
 assets / shares is increasing
 
-This is proven by showing that:
-(assets after accrue) / (shares before accrue + fee share) is increasing compared to (assets before accrue) / (shares before accrue)
 
-Next we prove thet accrue mints shares as result of fee shares 
 **/
 
 import "./HubBase.spec";
@@ -19,15 +16,9 @@ methods {
     
     function AssetLogic.getDrawnIndex(IHub.Asset storage asset) internal returns (uint256)  with (env e) => symbolicDrawnIndex(e.block.timestamp);
 
-    // proved in HubAccrueIntegrityUnrealizedFee.spec that this is the max value of getUnrealizedFees
-    function PercentageMath.percentMulDown(uint256 value, uint256 percentage) internal  returns (uint256) => 
-    identity(value);
 
 }
-// fee is always 100%
-function identity(uint256 x) returns uint256 {
-    return x;
-}
+
 
 // symbolic representation of drawnIndex that is a function of the block timestamp.
 ghost symbolicDrawnIndex(uint256) returns uint256;
@@ -49,6 +40,7 @@ rule accrueSupplyRate(uint256 assetId){
 
     // e1 is the last accrued timestamp
     require hub._assets[assetId].lastUpdateTimestamp!=0 && hub._assets[assetId].lastUpdateTimestamp == e1.block.timestamp; 
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
     
     
     //correlate the drawn index with the symbolic one, assume increasing and min value as proved in
@@ -93,6 +85,7 @@ function setup_three_timestamps(uint256 assetId, env e1, env e2, env e3){
 rule shareRate_withoutAccrue_time_monotonic(uint256 assetId){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = getAddedAssets(e1, assetId);
     mathint shares = hub._assets[assetId].addedShares;
@@ -113,6 +106,7 @@ rule shareRate_withoutAccrue_time_monotonic(uint256 assetId){
 rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewRemoveByShares(e1, assetId, shares);
     mathint assets_e2 = previewRemoveByShares(e2, assetId, shares);
@@ -125,6 +119,7 @@ rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256
 rule previewAddByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewAddByAssets(e1, assetId, assets);
     mathint shares_e2 = previewAddByAssets(e2, assetId, assets);
@@ -137,6 +132,7 @@ rule previewAddByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 as
 rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewAddByShares(e1, assetId, shares);
     mathint assets_e2 = previewAddByShares(e2, assetId, shares);
@@ -149,6 +145,7 @@ rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 sh
 rule previewRemoveByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewRemoveByAssets(e1, assetId, assets);
     mathint shares_e2 = previewRemoveByAssets(e2, assetId, assets);
@@ -162,6 +159,7 @@ rule previewRemoveByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256
 rule previewDrawByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewDrawByAssets(e1, assetId, assets);
     mathint shares_e2 = previewDrawByAssets(e2, assetId, assets);
@@ -174,6 +172,7 @@ rule previewDrawByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 a
 rule previewDrawByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewDrawByShares(e1, assetId, shares);
     mathint assets_e2 = previewDrawByShares(e2, assetId, shares);
@@ -187,6 +186,7 @@ rule previewDrawByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 s
 rule previewRestoreByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewRestoreByAssets(e1, assetId, assets);
     mathint shares_e2 = previewRestoreByAssets(e2, assetId, assets);
@@ -199,6 +199,7 @@ rule previewRestoreByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint25
 rule previewRestoreByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewRestoreByShares(e1, assetId, shares);
     mathint assets_e2 = previewRestoreByShares(e2, assetId, shares);

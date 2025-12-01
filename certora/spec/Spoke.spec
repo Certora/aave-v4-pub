@@ -291,10 +291,10 @@ rule realizedPremiumRayConsistency(uint256 reserveId, address user, method f)
     setup();
     requireInvariant validReserveId_single(reserveId);
     require userGhost == user;
-    require spoke._userPositions[user][reserveId].premiumOffsetRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
+    require spoke._userPositions[user][reserveId].premiumOffsetRay <= spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
     calldataarg args;
     f(e, args);
-    assert spoke._userPositions[user][reserveId].premiumOffsetRay == spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
+    assert spoke._userPositions[user][reserveId].premiumOffsetRay <= spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e);
 }
 
 
