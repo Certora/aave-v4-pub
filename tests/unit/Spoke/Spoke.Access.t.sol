@@ -87,7 +87,7 @@ contract SpokeAccessTest is SpokeBase {
       address(hub1),
       usdzAssetId,
       reserveSource,
-      ISpoke.ReserveConfig({paused: false, frozen: false, borrowable: true, collateralRisk: 0}),
+      _getDefaultReserveConfig(0),
       ISpoke.DynamicReserveConfig({
         collateralFactor: 75_00,
         maxLiquidationBonus: 100_00,
@@ -101,7 +101,7 @@ contract SpokeAccessTest is SpokeBase {
       address(hub1),
       usdzAssetId,
       reserveSource,
-      ISpoke.ReserveConfig({paused: false, frozen: false, borrowable: true, collateralRisk: 0}),
+      _getDefaultReserveConfig(0),
       ISpoke.DynamicReserveConfig({
         collateralFactor: 75_00,
         maxLiquidationBonus: 100_00,
@@ -113,17 +113,11 @@ contract SpokeAccessTest is SpokeBase {
     vm.expectRevert(
       abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this))
     );
-    spoke1.updateReserveConfig(
-      _daiReserveId(spoke1),
-      ISpoke.ReserveConfig({paused: false, frozen: false, borrowable: true, collateralRisk: 0})
-    );
+    spoke1.updateReserveConfig(_daiReserveId(spoke1), _getDefaultReserveConfig(0));
 
     // Spoke admin can call updateReserveConfig
     vm.prank(SPOKE_ADMIN);
-    spoke1.updateReserveConfig(
-      _daiReserveId(spoke1),
-      ISpoke.ReserveConfig({paused: false, frozen: false, borrowable: true, collateralRisk: 0})
-    );
+    spoke1.updateReserveConfig(_daiReserveId(spoke1), _getDefaultReserveConfig(0));
 
     // addDynamicReserveConfig only callable by spoke admin
     vm.expectRevert(
@@ -202,7 +196,7 @@ contract SpokeAccessTest is SpokeBase {
       address(hub1),
       assetId,
       reserveSource,
-      ISpoke.ReserveConfig({paused: false, frozen: false, borrowable: true, collateralRisk: 0}),
+      _getDefaultReserveConfig(0),
       ISpoke.DynamicReserveConfig({
         collateralFactor: 75_00,
         maxLiquidationBonus: 100_00,
@@ -221,7 +215,7 @@ contract SpokeAccessTest is SpokeBase {
       address(hub1),
       assetId,
       reserveSource,
-      ISpoke.ReserveConfig({paused: false, frozen: false, borrowable: true, collateralRisk: 0}),
+      _getDefaultReserveConfig(0),
       ISpoke.DynamicReserveConfig({
         collateralFactor: 75_00,
         maxLiquidationBonus: 100_00,

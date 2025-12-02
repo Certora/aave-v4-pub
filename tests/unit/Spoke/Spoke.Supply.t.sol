@@ -6,6 +6,7 @@ import 'tests/unit/Spoke/SpokeBase.t.sol';
 
 contract SpokeSupplyTest is SpokeBase {
   using PercentageMath for *;
+  using ReserveFlagsMap for ReserveFlags;
 
   function test_supply_revertsWith_ReserveNotListed() public {
     uint256 reserveId = spoke1.getReserveCount() + 1; // invalid reserveId
@@ -21,7 +22,7 @@ contract SpokeSupplyTest is SpokeBase {
     uint256 amount = 100e18;
 
     _updateReservePausedFlag(spoke1, daiReserveId, true);
-    assertTrue(spoke1.getReserve(daiReserveId).paused);
+    assertTrue(spoke1.getReserve(daiReserveId).flags.paused());
 
     vm.expectRevert(ISpoke.ReservePaused.selector);
     vm.prank(bob);
@@ -33,31 +34,45 @@ contract SpokeSupplyTest is SpokeBase {
     uint256 amount = 100e18;
 
     updateReserveFrozenFlag(spoke1, daiReserveId, true);
-    assertTrue(spoke1.getReserve(daiReserveId).frozen);
+    assertTrue(spoke1.getReserve(daiReserveId).flags.frozen());
 
     vm.expectRevert(ISpoke.ReserveFrozen.selector);
     vm.prank(bob);
     spoke1.supply(daiReserveId, amount, bob);
   }
 
-  function test_supply_revertsWith_TransferFromFailed() public {
+  function test_supply_revertsWith_ERC20InsufficientAllowance() public {
     uint256 amount = 100e18;
     uint256 approvalAmount = amount - 1;
 
     vm.startPrank(bob);
     tokenList.dai.approve(address(spoke1), approvalAmount);
-    vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IERC20Errors.ERC20InsufficientAllowance.selector,
+        address(spoke1),
+        approvalAmount,
+        amount
+      )
+    );
     spoke1.supply(_daiReserveId(spoke1), amount, bob);
     vm.stopPrank();
   }
 
-  function test_supply_fuzz_revertsWith_TransferFromFailed(uint256 amount) public {
+  function test_supply_fuzz_revertsWith_ERC20InsufficientBalance(uint256 amount) public {
     amount = bound(amount, 1, MAX_SUPPLY_AMOUNT);
     address randomUser = makeAddr('randomUser');
 
     vm.startPrank(randomUser);
     tokenList.dai.approve(address(spoke1), amount);
-    vm.expectRevert(SafeTransferLib.TransferFromFailed.selector);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        IERC20Errors.ERC20InsufficientBalance.selector,
+        address(randomUser),
+        0,
+        amount
+      )
+    );
     spoke1.supply(_daiReserveId(spoke1), amount, randomUser);
     vm.stopPrank();
   }
@@ -255,6 +270,7 @@ contract SpokeSupplyTest is SpokeBase {
     TestReturnValues memory returnValues;
     vm.expectEmit(address(spoke1));
     emit ISpokeBase.Supply(_daiReserveId(spoke1), carol, carol, expectedShares, amount);
+    _assertRefreshPremiumNotCalled();
     vm.prank(carol);
     (returnValues.shares, returnValues.amount) = spoke1.supply(
       _daiReserveId(spoke1),
@@ -374,6 +390,7 @@ contract SpokeSupplyTest is SpokeBase {
     TestReturnValues memory returnValues;
     vm.expectEmit(address(spoke1));
     emit ISpokeBase.Supply(reserveId, carol, carol, expectedSuppliedShares, amount);
+    _assertRefreshPremiumNotCalled();
     vm.prank(carol);
     (returnValues.shares, returnValues.amount) = spoke1.supply(reserveId, amount, carol);
     stage = 1;
@@ -447,6 +464,7 @@ contract SpokeSupplyTest is SpokeBase {
     vm.prank(carol);
     vm.expectEmit(address(spoke1));
     emit ISpokeBase.Supply(_daiReserveId(spoke1), carol, carol, expectedShares, amount);
+    _assertRefreshPremiumNotCalled();
     (returnValues.shares, returnValues.amount) = spoke1.supply(
       _daiReserveId(spoke1),
       amount,
@@ -548,6 +566,7 @@ contract SpokeSupplyTest is SpokeBase {
     TestReturnValues memory returnValues;
     vm.expectEmit(address(spoke1));
     emit ISpokeBase.Supply(reserveId, carol, carol, expectedShares, amount);
+    _assertRefreshPremiumNotCalled();
     vm.prank(carol);
     (returnValues.shares, returnValues.amount) = spoke1.supply(reserveId, amount, carol);
 
