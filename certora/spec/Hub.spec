@@ -101,7 +101,7 @@ filtered {
 
     mathint assetsAfter = getAddedAssets(e,assetId);
     mathint sharesAfter = getAddedShares(e,assetId);
-
+    require assetsAfter >= sharesAfter, "based on rule totalAssetsVsShares(assetId,e) and to help the prover";
     assert (assetsAfter + OneM) * (sharesBefore + OneM) >= (assetsBefore + OneM )* (sharesAfter + OneM);
 }
 

@@ -1,25 +1,12 @@
 
 import "./SpokeBase.spec";
+import "./HubValidState.spec";
 import "./symbolicRepresentation/SymbolicPositionStatus.spec";
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 
 // Note: 'spoke' alias is declared in SpokeBase.spec
-using Hub as hub;
+// Note: 'hub' alias is declared in HubValidState.spec
 
-
-// Methods block for Spoke contract
-methods {
-    // Note: LiquidationLogic._calculateLiquidationAmounts is summarized in SpokeBase.spec
-
-    function _.setInterestRateData(uint256 assetId, bytes data) external => NONDET; 
-
-    function _._checkCanCall(address caller, bytes calldata data) internal => NONDET; 
-
-    function AssetLogic.getDrawnIndex(IHub.Asset storage   asset) internal returns (uint256) => cachedIndex;
-}
-
-// assume a given single drawnIndex
-ghost uint256 cachedIndex;
 
 
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserSuppliedSharesPerReserveId {
@@ -189,29 +176,33 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
 
 
 
-/*
+
 //todo - check this violation, seems that debt can increse a bit no health check
 //https://prover.certora.com/output/40726/7b75b670ab0b4dc099147c08e2b33527/ 
 rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
     env e;
     safeAssumptions();
+    requireAllInvariants(spoke._reserves[reserveId].assetId, e);
+    requireInvariant premiumOffset_Integrity(spoke._reserves[reserveId].assetId, spoke,e); 
+
     require userGhost == user;
     
     uint120 beforeUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint200 beforeUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay;
 
+    mathint premiumDebtBefore = (spoke._userPositions[user][reserveId].premiumShares * cachedIndex)- spoke._userPositions[user][reserveId].premiumOffsetRay;
     spoke.repay(e, reserveId, amount, user);
 
     uint120 afterUserPosition_drawnShares = spoke._userPositions[user][reserveId].drawnShares;
-    uint200 afterUserPosition_realizedPremiumRay = spoke._userPositions[user][reserveId].realizedPremiumRay;
-    
-    satisfy beforeUserPosition_drawnShares == afterUserPosition_drawnShares;
-    satisfy beforeUserPosition_realizedPremiumRay < afterUserPosition_realizedPremiumRay;
-    satisfy beforeUserPosition_drawnShares == afterUserPosition_drawnShares && beforeUserPosition_realizedPremiumRay < afterUserPosition_realizedPremiumRay;
 
+    mathint premiumDebtAfter = (spoke._userPositions[user][reserveId].premiumShares * cachedIndex)- spoke._userPositions[user][reserveId].premiumOffsetRay;
+    
+
+    assert premiumDebtBefore <= premiumDebtAfter;
+    assert beforeUserPosition_drawnShares <= afterUserPosition_drawnShares;
+    
 }
 
-*/
+
 
 rule checkRepay_zeroDebt(uint256 reserveId, uint256 amount, address user) {
     env e;

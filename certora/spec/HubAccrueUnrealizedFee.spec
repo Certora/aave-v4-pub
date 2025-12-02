@@ -49,13 +49,23 @@ rule maxgetUnrealizedFees(uint256 assetId){
 
     storage init_state = lastStorage;
     require hub._assets[assetId].liquidityFee == PERCENTAGE_FACTOR;
-    uint256 feeSharesAtMax = getUnrealizedFees(e2,assetId);
+    uint256 feesAtMax = getUnrealizedFees(e2,assetId);
 
     //assume any value that can be set in updateAssetConfig
     // must be called at e1 as accrue is happening in updateAssetConfig
     IHub.AssetConfig config;
     bytes irData;
     updateAssetConfig(e1,assetId,config,irData) at init_state;
-    assert getUnrealizedFees(e2,assetId) <= feeSharesAtMax;
+    assert getUnrealizedFees(e2,assetId) <= feesAtMax;
 
+}
+
+/** 
+@title Prove that when the lastUpdateTimestamp is the same as the block timestamp, the unrealized fees are 0
+**/
+rule lastUpdateTimestampSameAsBlockTimestamp(uint256 assetId){
+    env e; 
+    require hub._assets[assetId].lastUpdateTimestamp!=0 && hub._assets[assetId].lastUpdateTimestamp == e.block.timestamp; 
+    require hub._assets[assetId].drawnIndex == symbolicDrawnIndex(e.block.timestamp);
+    assert getUnrealizedFees(e,assetId) == 0;
 }

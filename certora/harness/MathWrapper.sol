@@ -38,6 +38,10 @@ contract MathWrapper {
     return WadRayMath.RAY;
   }
 
+  function WAD() public pure returns (uint256) {
+    return WadRayMath.WAD;
+  }
+
   function rayMulDown(uint256 a, uint256 b) public pure returns (uint256) {
     return WadRayMath.rayMulDown(a, b);
   }
@@ -54,8 +58,20 @@ contract MathWrapper {
     return WadRayMath.rayDivUp(a, b);
   }
 
+  function wadDivDown(uint256 a, uint256 b) public pure returns (uint256) {
+    return WadRayMath.wadDivDown(a, b);
+  }
+
+  function wadDivUp(uint256 a, uint256 b) public pure returns (uint256) {
+    return WadRayMath.wadDivUp(a, b);
+  }
+
   function percentMulDown(uint256 percentage, uint256 value) public pure returns (uint256) {
     return PercentageMath.percentMulDown(percentage, value);
+  }
+
+  function percentMulUp(uint256 percentage, uint256 value) public pure returns (uint256) {
+    return PercentageMath.percentMulUp(percentage, value);
   }
 
   function PERCENTAGE_FACTOR() public pure returns (uint256) {

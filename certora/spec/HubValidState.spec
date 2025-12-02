@@ -30,8 +30,12 @@ methods {
     function AssetLogic.getDrawnIndex(IHub.Asset storage   asset) internal returns (uint256) => cachedIndex;
 
     //rules concerning accrue are in HubAccrueIntegrity.spec
+    // In this spec we assume that the asset is not being used for fees, so getUnrealizedFees returns 0
     function AssetLogic.accrue(IHub.Asset storage asset) internal => accrueCalled();
-
+    function AssetLogic.getUnrealizedFees(
+    IHub.Asset storage asset,
+    uint256 drawnIndex
+  ) internal returns (uint256) => 0;
 }
 
 /************ Ghost Variables ************/
@@ -40,27 +44,27 @@ methods {
 ghost uint256 cachedIndex;
 
 
-ghost mapping(uint256 /*assetId*/  => mapping(address /*spoke*/ => uint256 )) spokeSupplyPerAssetMirror {
+ghost mapping(uint256 /*assetId*/  => mapping(address /*spokeId*/ => uint256 )) spokeSupplyPerAssetMirror {
     init_state axiom forall uint256 X. forall address Y. spokeSupplyPerAssetMirror[X][Y] == 0 ;
     init_state axiom forall uint256 X. (usum address a. spokeSupplyPerAssetMirror[X][a]) == 0; 
 }
 
-ghost mapping(uint256 /*assetId*/  => mapping(address /*spoke*/ => uint256 )) spokePremiumDrawnSharesPerAssetMirror {
+ghost mapping(uint256 /*assetId*/  => mapping(address /*spokeId*/ => uint256 )) spokePremiumDrawnSharesPerAssetMirror {
     init_state axiom forall uint256 X. forall address Y. spokePremiumDrawnSharesPerAssetMirror[X][Y] == 0 ;
     init_state axiom forall uint256 X. (usum address a. spokePremiumDrawnSharesPerAssetMirror[X][a]) == 0; 
 }
 
-ghost mapping(uint256 /*assetId*/  => mapping(address /*spoke*/ => uint256 )) spokeBaseDrawnPerAssetMirror {
+ghost mapping(uint256 /*assetId*/  => mapping(address /*spokeId*/ => uint256 )) spokeBaseDrawnPerAssetMirror {
     init_state axiom forall uint256 X. forall address Y. spokeBaseDrawnPerAssetMirror[X][Y] == 0 ;
     init_state axiom forall uint256 X. (usum address a. spokeBaseDrawnPerAssetMirror[X][a]) == 0; 
 }
 
-ghost mapping(uint256 /*assetId*/  => mapping(address /*spoke*/ => int200 )) spokePremiumOffsetPerAssetMirror {
+ghost mapping(uint256 /*assetId*/  => mapping(address /*spokeId*/ => int200 )) spokePremiumOffsetPerAssetMirror {
     init_state axiom forall uint256 X. forall address Y. spokePremiumOffsetPerAssetMirror[X][Y] == 0 ;
     init_state axiom forall uint256 X. (sum address a. spokePremiumOffsetPerAssetMirror[X][a]) == 0; 
 }
 
-ghost mapping(uint256 /*assetId*/  => mapping(address /*spoke*/ => uint256 )) spokeDeficitPerAssetMirror {
+ghost mapping(uint256 /*assetId*/  => mapping(address /*spokeId*/ => uint256 )) spokeDeficitPerAssetMirror {
     init_state axiom forall uint256 X. forall address Y. spokeDeficitPerAssetMirror[X][Y] == 0 ;
     init_state axiom forall uint256 X. (usum address a. spokeDeficitPerAssetMirror[X][a]) == 0; 
 }
@@ -75,68 +79,68 @@ function accrueCalled() {
 
 /************ Hooks  ************/
 
-hook Sstore _assets[KEY uint256 assetId].drawnIndex uint120 new_value (uint120 old_value) {
+hook Sstore hub._assets[KEY uint256 assetId].drawnIndex uint120 new_value (uint120 old_value) {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint120 value _assets[KEY uint256 assetId].drawnIndex  {
+hook Sload uint120 value hub._assets[KEY uint256 assetId].drawnIndex  {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
-hook Sstore _assets[KEY uint256 assetId].addedShares uint120 new_value (uint120 old_value) {
-    unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
-}
-
-hook Sload uint120 value _assets[KEY uint256 assetId].addedShares  {
+hook Sstore hub._assets[KEY uint256 assetId].addedShares uint120 new_value (uint120 old_value) {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].drawnShares uint120 new_value (uint120 old_value) {
-    spokeBaseDrawnPerAssetMirror[assetId][spoke] = new_value;
+hook Sload uint120 value hub._assets[KEY uint256 assetId].addedShares  {
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].drawnShares {
-    require spokeBaseDrawnPerAssetMirror[assetId][spoke] == value;
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spokeId].drawnShares uint120 new_value (uint120 old_value) {
+    spokeBaseDrawnPerAssetMirror[assetId][spokeId] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].addedShares uint120 new_value (uint120 old_value) {
-    spokeSupplyPerAssetMirror[assetId][spoke] = new_value;
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spokeId].drawnShares {
+    require spokeBaseDrawnPerAssetMirror[assetId][spokeId] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].addedShares {
-    require spokeSupplyPerAssetMirror[assetId][spoke] == value;
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spokeId].addedShares uint120 new_value (uint120 old_value) {
+    spokeSupplyPerAssetMirror[assetId][spokeId] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].premiumShares uint120 new_value (uint120 old_value) {
-    spokePremiumDrawnSharesPerAssetMirror[assetId][spoke] = new_value;
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spokeId].addedShares {
+    require spokeSupplyPerAssetMirror[assetId][spokeId] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spoke].premiumShares {
-    require spokePremiumDrawnSharesPerAssetMirror[assetId][spoke] == value;
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spokeId].premiumShares uint120 new_value (uint120 old_value) {
+    spokePremiumDrawnSharesPerAssetMirror[assetId][spokeId] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].premiumOffsetRay int200 new_value (int200 old_value) {
-    spokePremiumOffsetPerAssetMirror[assetId][spoke] = new_value;
+hook Sload uint120 value hub._spokes[KEY uint256 assetId][KEY address spokeId].premiumShares {
+    require spokePremiumDrawnSharesPerAssetMirror[assetId][spokeId] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload int200 value hub._spokes[KEY uint256 assetId][KEY address spoke].premiumOffsetRay {
-    require spokePremiumOffsetPerAssetMirror[assetId][spoke] == value;
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spokeId].premiumOffsetRay int200 new_value (int200 old_value) {
+    spokePremiumOffsetPerAssetMirror[assetId][spokeId] = new_value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sstore hub._spokes[KEY uint256 assetId][KEY address spoke].deficitRay uint200 new_value (uint200 old_value) {
-    spokeDeficitPerAssetMirror[assetId][spoke] = new_value;
+hook Sload int200 value hub._spokes[KEY uint256 assetId][KEY address spokeId].premiumOffsetRay {
+    require spokePremiumOffsetPerAssetMirror[assetId][spokeId] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 
-hook Sload uint200 value hub._spokes[KEY uint256 assetId][KEY address spoke].deficitRay {
-    require spokeDeficitPerAssetMirror[assetId][spoke] == value;
+hook Sstore hub._spokes[KEY uint256 assetId][KEY address spokeId].deficitRay uint200 new_value (uint200 old_value) {
+    spokeDeficitPerAssetMirror[assetId][spokeId] = new_value;
+    unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
+}
+
+hook Sload uint200 value hub._spokes[KEY uint256 assetId][KEY address spokeId].deficitRay {
+    require spokeDeficitPerAssetMirror[assetId][spokeId] == value;
     unsafeAccessBeforeAccrue = unsafeAccessBeforeAccrue || !accrueCalledOnAsset;
 }
 /**** Valid State Rules *******/
@@ -155,13 +159,13 @@ definition emptyAsset(uint256 assetId) returns bool =
         hub._assets[assetId].drawnRate == 0 &&
         hub._assets[assetId].lastUpdateTimestamp == 0 &&
         hub._assets[assetId].underlying == 0 &&
-        ( forall address spoke. 
-            hub._spokes[assetId][spoke].addedShares == 0 &&
-            hub._spokes[assetId][spoke].drawnShares == 0 &&
-            hub._spokes[assetId][spoke].premiumShares == 0  &&
-            hub._spokes[assetId][spoke].premiumOffsetRay == 0 &&
-            !hub._spokes[assetId][spoke].active &&
-            assetToSpokeIndexes[assetId][to_bytes32(spoke)] == 0
+        ( forall address spokeId. 
+            hub._spokes[assetId][spokeId].addedShares == 0 &&
+            hub._spokes[assetId][spokeId].drawnShares == 0 &&
+            hub._spokes[assetId][spokeId].premiumShares == 0  &&
+            hub._spokes[assetId][spokeId].premiumOffsetRay == 0 &&
+            !hub._spokes[assetId][spokeId].active &&
+            assetToSpokeIndexes[assetId][to_bytes32(spokeId)] == 0
         );
         
 
@@ -199,7 +203,7 @@ invariant validAssetId(uint256 assetId, address asset )
 * @title the sum of  hub._spokes[assetId][spoke].addedShares for all spoke equals to hub._assets[assetId].addedShares
 */
 invariant sumOfSpokeSupplyShares(uint256 assetId) 
-    hub._assets[assetId].addedShares == (usum address spoke. spokeSupplyPerAssetMirror[assetId][spoke]) 
+    hub._assets[assetId].addedShares == (usum address spokeId. spokeSupplyPerAssetMirror[assetId][spokeId]) 
     {
         preserved {
             address anyAsset;
@@ -211,7 +215,7 @@ invariant sumOfSpokeSupplyShares(uint256 assetId)
 * @title the sum of  hub._spokes[assetId][spoke].drawnShares for all spoke equals to hub._assets[assetId].drawnShares
 */
 invariant sumOfSpokeDrawnShares(uint256 assetId) 
-    hub._assets[assetId].drawnShares == (usum address spoke. spokeBaseDrawnPerAssetMirror[assetId][spoke]) 
+    hub._assets[assetId].drawnShares == (usum address spokeId. spokeBaseDrawnPerAssetMirror[assetId][spokeId]) 
     {
         preserved {
             address anyAsset;   
@@ -223,7 +227,7 @@ invariant sumOfSpokeDrawnShares(uint256 assetId)
 * @title the sum of  hub._spokes[assetId][spoke].premiumShares for all spoke equals to hub._assets[assetId].premiumShares
 */
 invariant sumOfSpokePremiumDrawnShares(uint256 assetId) 
-    hub._assets[assetId].premiumShares == (usum address spoke. spokePremiumDrawnSharesPerAssetMirror[assetId][spoke]) 
+    hub._assets[assetId].premiumShares == (usum address spokeId. spokePremiumDrawnSharesPerAssetMirror[assetId][spokeId]) 
     {
         preserved {
             address anyAsset;
@@ -235,7 +239,7 @@ invariant sumOfSpokePremiumDrawnShares(uint256 assetId)
 * @title the sum of  hub._spokes[assetId][spoke].premiumOffsetRay for all spoke equals to hub._assets[assetId].premiumOffsetRay
 */
 invariant sumOfSpokePremiumOffset(uint256 assetId) 
-    hub._assets[assetId].premiumOffsetRay == (sum address spoke. spokePremiumOffsetPerAssetMirror[assetId][spoke]) 
+    hub._assets[assetId].premiumOffsetRay == (sum address spokeId. spokePremiumOffsetPerAssetMirror[assetId][spokeId]) 
     {
         preserved {
             address anyAsset;
@@ -247,7 +251,7 @@ invariant sumOfSpokePremiumOffset(uint256 assetId)
 * @title the sum of  hub._spokes[assetId][spoke].deficitRay for all spoke equals to hub._assets[assetId].deficitRay
 */
 invariant sumOfSpokeDeficit(uint256 assetId) 
-    hub._assets[assetId].deficitRay == (usum address spoke. spokeDeficitPerAssetMirror[assetId][spoke]) 
+    hub._assets[assetId].deficitRay == (usum address spokeId. spokeDeficitPerAssetMirror[assetId][spokeId]) 
     {
         preserved {
             address anyAsset;
@@ -278,8 +282,8 @@ invariant liquidityFee_upper_bound(uint256 assetId)
  * @title premiumOffsetRay integrity: premiumOffsetRay must not exceed the premiumShares when converted to assets rounding up
  */
 invariant premiumOffset_Integrity(uint256 assetId, address spokeId, env e) 
-    previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) * hub._assets[assetId].drawnIndex >=  hub._assets[assetId].premiumOffsetRay && 
-    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) * hub._assets[assetId].drawnIndex >=  hub._spokes[assetId][spokeId].premiumOffsetRay 
+    hub.previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) * hub._assets[assetId].drawnIndex >=  hub._assets[assetId].premiumOffsetRay && 
+    hub.previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) * hub._assets[assetId].drawnIndex >=  hub._spokes[assetId][spokeId].premiumOffsetRay 
     {
         preserved  with (env e1) {
             requireAllInvariants(assetId, e1);
@@ -309,8 +313,8 @@ strong invariant solvency_external(uint256 assetId )
 * @title the sum of added assets is greater than or equal to the sum of added shares
 */
 invariant totalAssetsVsShares(uint256 assetId, env e) 
-    getAddedAssets(e,assetId) >=  getAddedShares(e,assetId) 
-    filtered { f-> f.selector != sig:eliminateDeficit(uint256,uint256,address).selector }{
+    hub.getAddedAssets(e,assetId) >=  hub.getAddedShares(e,assetId) 
+    filtered { f-> f.selector != sig:hub.eliminateDeficit(uint256,uint256,address).selector }{
 
         preserved with (env eInv) {
             require eInv.block.timestamp == e.block.timestamp;
@@ -318,11 +322,12 @@ invariant totalAssetsVsShares(uint256 assetId, env e)
         }
     }
 
-rule totalAssetsVsShares_eliminateDeficit(uint256 assetId, uint256 amount, address spoke) {
+rule totalAssetsVsShares_eliminateDeficit(uint256 assetId, uint256 amount, address spokeId) {
     env e;
     requireAllInvariants(assetId, e);
-    eliminateDeficit(e, assetId, amount, spoke);
-    assert getAddedAssets(e,assetId) >= getAddedShares(e,assetId);
+    requireInvariant premiumOffset_Integrity(assetId, e.msg.sender,e); 
+    eliminateDeficit(e, assetId, amount, spokeId);
+    assert hub.getAddedAssets(e,assetId) >= hub.getAddedShares(e,assetId);
 }
 
 
@@ -439,8 +444,8 @@ ghost uint256 supplyShareBefore;
 
 function requireAllInvariants(uint256 assetId, env e)  {
     // optimize (reuse) the calls to getAddedAssets() and getTotalAddedShares()
-    addedAssetsBefore = getAddedAssets(e,assetId);
-    supplyShareBefore = getAddedShares(e,assetId); 
+    addedAssetsBefore = hub.getAddedAssets(e,assetId);
+    supplyShareBefore = hub.getAddedShares(e,assetId); 
     requireInvariant totalAssetsVsShares(assetId,e);
     require addedAssetsBefore >= supplyShareBefore, "optimization";
     
@@ -455,7 +460,6 @@ function requireAllInvariants(uint256 assetId, env e)  {
     address anyAsset;   
     requireInvariant validAssetId(assetId, anyAsset);
     requireInvariant liquidityFee_upper_bound(assetId);
-    requireInvariant premiumOffset_Integrity(assetId, e.msg.sender,e);
     requireInvariant underlyingAssetsIntegrity();
     require cachedIndex == hub._assets[assetId].drawnIndex;
 

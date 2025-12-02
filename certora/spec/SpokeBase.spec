@@ -13,36 +13,7 @@ Here we have only safe assumptions, safe summarization that are either proved in
 
 ***/
 methods {
-    function Math.mulDiv(uint256 x, uint256 y, uint256 denominator) internal  returns (uint256) => mulDivDownCVL(x,y,denominator);
-    function Math.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding
-  ) internal returns (uint256) => mulDivCheckRounding(x,y,denominator,rounding);
-
-    function WadRayMathWrapper.RAY() external returns (uint256) envfree;
-    function WadRayMathWrapper.WAD() external returns (uint256) envfree;
-
-    function WadRayMath.rayMulDown(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayDownCVL(a,b);
     
-    function WadRayMathWrapper.rayMulUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayUpCVL(a,b);   
-
-    function WadRayMath.rayMulUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivRayUpCVL(a,b);
-
-    //todo - check summary in math.spec
-    function WadRayMath.wadDivUp(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivUpCVL(a,wadRayMath.WAD(),b);
-    //todo - check summary in math.spec
-    function WadRayMath.wadDivDown(uint256 a, uint256 b) internal returns (uint256) => 
-        mulDivDownCVL(a,wadRayMath.WAD(),b);
-    
-    function PercentageMath.percentMulDown(uint256 percentage, uint256 value) internal returns (uint256) =>  //identity(value);
-        mulDivDownCVL(value,percentage,PERCENTAGE_FACTOR);
-    
-    function PercentageMath.percentMulUp(uint256 percentage, uint256 value) internal returns (uint256) =>  //identity(value);
-        mulDivUpCVL(value,percentage,PERCENTAGE_FACTOR);
-
-
 
     function _.sortByKey(KeyValueList.List memory array) internal
         => CVL_sort(array) expect void;
@@ -69,12 +40,6 @@ methods {
     function _.getReserve(uint256 reserveId) external => HAVOC_ECF;
     function _.getDynamicReserveConfig(uint256 reserveId) external => HAVOC_ECF;
 
-    
-
-    // Note: isBorrowing and isUsingAsCollateral are ghost mappings defined in SymbolicPositionStatus.spec, not external methods
-
-    // Note: _calculateLiquidationAmounts is summarized in SpokeUserIntegrity.spec
-    // Cannot use NONDET with struct return types, so summary is handled elsewhere 
 
 
     function AuthorityUtils.canCallWithDelay(
@@ -91,13 +56,6 @@ methods {
   ) internal returns (bool) => NONDET ALL;
 }
 
-persistent ghost uint256 PERCENTAGE_FACTOR {
-    axiom PERCENTAGE_FACTOR == 10000;
-}
-
-    function identity(uint256 value) returns (uint256) {
-        return value;
-    }
 
 definition increaseCollateralOrReduceDebtFunctions(method f) returns bool =
     f.selector != sig:withdraw(uint256, uint256, address).selector && 
