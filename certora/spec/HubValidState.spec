@@ -446,7 +446,7 @@ function requireAllInvariants(uint256 assetId, env e)  {
     // optimize (reuse) the calls to getAddedAssets() and getTotalAddedShares()
     addedAssetsBefore = hub.getAddedAssets(e,assetId);
     supplyShareBefore = hub.getAddedShares(e,assetId); 
-    requireInvariant totalAssetsVsShares(assetId,e);
+    //requireInvariant totalAssetsVsShares(assetId,e);
     require addedAssetsBefore >= supplyShareBefore, "optimization";
     
 

@@ -234,7 +234,7 @@ invariant validReserveId_single(uint256 reserveId)
     // not exists
     (reserveId >= spoke._reserveCount =>
     // has no underlying, hub, assetId
-    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 && 
+    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && spoke._reserves[reserveId].flags == 0 && spoke._reserves[reserveId].collateralRisk == 0 && 
     
     (forall address user. 
     // no one borrowed or used as collateral
@@ -261,7 +261,7 @@ function validReserveId_singleUser(uint256 reserveId, address user)  {
     // not exists
     (reserveId >= spoke._reserveCount =>
     // has no underlying, hub, assetId
-    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 && 
+    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && spoke._reserves[reserveId].flags == 0 && spoke._reserves[reserveId].collateralRisk == 0 && 
     spoke._dynamicConfig[reserveId][0].collateralFactor == 0 &&
     // no one borrowed or used as collateral
     !isBorrowing[user][reserveId] && !isUsingAsCollateral[user][reserveId]
@@ -364,7 +364,7 @@ forall uint256 reserveId. forall address user.
     spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0 &&
 
     // has no underlying, hub, assetId
-    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && !spoke._reserves[reserveId].paused && !spoke._reserves[reserveId].frozen && !spoke._reserves[reserveId].borrowable && spoke._reserves[reserveId].collateralRisk == 0 )))
+    spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0 && spoke._reserves[reserveId].flags == 0 && spoke._reserves[reserveId].collateralRisk == 0 )))
 
     filtered {f -> f.selector != sig:multicall(bytes[]).selector && f.selector != sig:liquidationCall(uint256, uint256, address, uint256, bool).selector}
 

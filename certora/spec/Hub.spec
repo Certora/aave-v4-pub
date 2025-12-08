@@ -179,3 +179,32 @@ rule lastUpdateTimestamp_notInFuture(uint256 assetId, method f) filtered { f-> !
 
 }
 
+/**
+@title total assets is equal to the supplied amount when taking into account the virtual assets and shares
+**/
+rule totalAssetsCompareToSuppliedAmount_virtual(uint256 assetId, env e){
+    requireAllInvariants(assetId, e); 
+    uint256 oneM = 1000000;
+    
+    mathint addedAssets = getAddedAssets(e,assetId) + oneM;
+    mathint addedShares = getAddedShares(e,assetId) + oneM;
+
+    // rounding down
+    assert addedAssets == previewRemoveByShares(e, assetId, require_uint256(addedShares));
+    // rounding up
+    assert addedAssets == previewAddByShares(e, assetId, require_uint256(addedShares));
+}
+
+/**
+@title total assets is equal to or greater than the supplied amount without taking into account the virtual assets and shares
+**/
+rule totalAssetsCompareToSuppliedAmount_noVirtual(uint256 assetId, env e){
+    requireAllInvariants(assetId, e); 
+    mathint addedAssets = getAddedAssets(e,assetId);
+    mathint addedShares = getAddedShares(e,assetId);
+
+    assert addedAssets >= previewRemoveByShares(e, assetId, require_uint256(addedShares));
+    satisfy addedAssets > previewRemoveByShares(e, assetId, require_uint256(addedShares));
+    assert addedAssets >= previewAddByShares(e, assetId, require_uint256(addedShares));
+    satisfy addedAssets > previewAddByShares(e, assetId, require_uint256(addedShares));
+}

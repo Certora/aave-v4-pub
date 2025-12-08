@@ -197,8 +197,8 @@ rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
     mathint premiumDebtAfter = (spoke._userPositions[user][reserveId].premiumShares * cachedIndex)- spoke._userPositions[user][reserveId].premiumOffsetRay;
     
 
-    assert premiumDebtBefore <= premiumDebtAfter;
-    assert beforeUserPosition_drawnShares <= afterUserPosition_drawnShares;
+    assert premiumDebtBefore >= premiumDebtAfter;
+    assert beforeUserPosition_drawnShares >= afterUserPosition_drawnShares;
     
 }
 
