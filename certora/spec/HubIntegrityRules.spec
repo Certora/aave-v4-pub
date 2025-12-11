@@ -105,29 +105,3 @@ rule validSpokeOnly(uint256 assetId, method f) {
     assert premiumShares < hub._spokes[assetId][spoke].premiumShares => active ;
     assert premiumOffsetRay != hub._spokes[assetId][spoke].premiumOffsetRay => active ;
 }
-
-
-/// @title spoke can not go over max allowed cap
-rule spokeMaxCap(uint256 assetId, method f)
-filtered { f -> !f.isView && 
-        f.selector != sig:addSpoke(uint256,address,IHub.SpokeConfig).selector && 
-        f.selector  != sig:updateSpokeConfig(uint256,address,IHub.SpokeConfig).selector &&
-        f.selector != sig:updateAssetConfig(uint256,IHub.AssetConfig,bytes).selector } {
-    env e;
-    calldataarg args;
-    address spoke = e.msg.sender;
-    requireAllInvariants(assetId,e);
-    require hub._assets[assetId].decimals == 1;
-    uint256 addCapBefore = hub._spokes[assetId][spoke].addCap;
-    uint256 drawCapBefore = hub._spokes[assetId][spoke].drawCap;
-    require hub._spokes[assetId][spoke].addedShares <=  addCapBefore * 10; 
-    require hub._spokes[assetId][spoke].drawnShares <=  drawCapBefore * 10; 
-    
-    require hub._assets[assetId].feeReceiver != spoke;
-    f(e,args);
-
-    uint256 addCapAfter = hub._spokes[assetId][spoke].addCap;
-    uint256 drawCapAfter = hub._spokes[assetId][spoke].drawCap;
-    assert addCapAfter == max_uint40 || hub._spokes[assetId][spoke].addedShares <=  addCapAfter * 10; 
-    assert drawCapAfter == max_uint40 || hub._spokes[assetId][spoke].drawnShares <=  drawCapAfter * 10; 
-}

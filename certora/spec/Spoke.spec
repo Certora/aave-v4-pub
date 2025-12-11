@@ -172,6 +172,7 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> !outOfScop
     address user;
     env e;
     setup();
+    requireInvariant validReserveId_single(reserveId);
     require userGhost == user;
 
     //user state before the operation
@@ -182,6 +183,10 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> !outOfScop
     int200 beforeUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
     uint120 beforeUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
     uint24 beforeUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
+
+
+    mathint premiumDebtBefore = (spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e))- spoke._userPositions[user][reserveId].premiumOffsetRay;
+
     // Execute the operation 
     calldataarg args;
     f(e, args);
@@ -194,20 +199,24 @@ rule increaseCollateralOrReduceDebtFunctions(method f) filtered {f -> !outOfScop
     int200 afterUserPosition_premiumOffsetRay = spoke._userPositions[user][reserveId].premiumOffsetRay;
     uint120 afterUserPosition_suppliedShares = spoke._userPositions[user][reserveId].suppliedShares;
     uint24 afterUserPosition_dynamicConfigKey = spoke._userPositions[user][reserveId].dynamicConfigKey;
+
+    mathint premiumDebtAfter = (spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e)) - spoke._userPositions[user][reserveId].premiumOffsetRay;
     
     assert beforePositionStatus_borrowing == afterPositionStatus_borrowing || 
     (beforePositionStatus_borrowing && !afterPositionStatus_borrowing && afterUserPosition_drawnShares == 0 && afterUserPosition_premiumShares == 0 && afterUserPosition_premiumOffsetRay == 0);
+
     assert beforePositionStatus_usingAsCollateral == afterPositionStatus_usingAsCollateral;
     assert beforeUserPosition_drawnShares >= afterUserPosition_drawnShares;
-    assert beforeUserPosition_premiumShares >= afterUserPosition_premiumShares;
-    assert beforeUserPosition_premiumOffsetRay >= afterUserPosition_premiumOffsetRay;
+    /* repay is proved in SpokeHubIntegrity.spec that it reduces the premium debt and drawn shares */
+    if (f.selector != sig:repay(uint256, uint256, address).selector) {
+        assert premiumDebtBefore >= premiumDebtAfter;
+    } 
     assert beforeUserPosition_suppliedShares <= afterUserPosition_suppliedShares;
     assert beforeUserPosition_dynamicConfigKey == afterUserPosition_dynamicConfigKey;
 }
 
 
 use invariant isBorrowingIFFdrawnShares;
-// Note: validReserveId is now a require statement in setup() function in SpokeBase.spec
 
 
 invariant drawnSharesZero(address user, uint256 reserveId) 
@@ -299,8 +308,7 @@ rule realizedPremiumRayConsistency(uint256 reserveId, address user, method f)
 
 
     
-/* todo: failing when collateralFactor becomes 0 
-https://prover.certora.com/output/40726/b077c5f4ef564ee2936a9532c6c246f8/
+/* 
 */
 rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f) 
     filtered {f -> !outOfScopeFunctions(f) && !f.isView && increaseCollateralOrReduceDebtFunctions(f)} {
@@ -328,6 +336,18 @@ rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f)
     }
     require  beforeCollateralFactor > 0 => afterCollateralFactor > 0, "rule collateralFactorNotZero";
     assert afterUserAccountData.totalCollateralValue == 0 => afterUserAccountData.totalDebtValue == 0;
+}
+
+
+rule updateUserDynamicConfig_noChangeToDebtValue(address user) {
+    env e;
+    setup();
+    require userGhost == user;
+    calldataarg args;
+    ISpoke.UserAccountData beforeUserAccountData = getUserAccountData(e,user);
+    updateUserDynamicConfig(e, user);
+    ISpoke.UserAccountData afterUserAccountData = getUserAccountData(e,user);
+    assert beforeUserAccountData.totalDebtValue == afterUserAccountData.totalDebtValue;
 }
 
 // need this to prove noCollateralNoDebt
