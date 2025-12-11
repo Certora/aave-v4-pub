@@ -4,6 +4,7 @@ env:
   CONFIGS: |
     certora/conf/libs/LibBit.conf
     certora/conf/libs/Math.conf
+    certora/conf/libs/Premium.conf
     certora/conf/libs/SharesMath.conf
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf

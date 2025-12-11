@@ -1,5 +1,4 @@
 import "../symbolicRepresentation/Math_CVL.spec";
-import "../HubBase.spec";
 
 
 /**
@@ -225,4 +224,8 @@ To run this spec file:
     
     rule WAD_definition() {
         assert WAD() == 10^18;
+    }
+
+    persistent ghost uint256 PERCENTAGE_FACTOR {
+    axiom PERCENTAGE_FACTOR == 10000;
     }
