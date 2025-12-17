@@ -104,3 +104,4 @@ rule userIntegrity(method f) filtered {f -> f.selector != sig:liquidationCall(ui
     
     assert !detectedMisuse;
 }
+

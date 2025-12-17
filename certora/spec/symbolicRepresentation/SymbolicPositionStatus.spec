@@ -1,6 +1,8 @@
 /**
 Symbolic representation of the PositionStatusMap.sol library.
-The summarization of the PositionStatus.spec library is verified to obtain the rules of the PositionStatusMap.sol library
+The summarization of the PositionStatus.spec library is verified to obtain the rules of the PositionStatusMap.sol library.
+
+This summary is used in the Spoke.spec file.
 
 To run this spec file:
  certoraRun certora/conf/VerifySymbolicPositionStatus.conf 

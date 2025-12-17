@@ -38,8 +38,6 @@ methods {
     function PercentageMath.percentMulUp(uint256 percentage, uint256 value) internal returns (uint256) =>  
         mulDivUpCVL(value,percentage,PERCENTAGE_FACTOR);
 
-
-    
     function _._checkCanCall(address caller, bytes calldata data) internal => NONDET; 
     
     function _.setInterestRateData(uint256 assetId, bytes data) external => NONDET; 

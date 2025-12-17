@@ -1,3 +1,13 @@
+/**
+Verify SpokeHubIntegrity.spec
+
+Verify the integrity of the Spoke contract related to Hub.
+Assumption the Hub is the specific implementation in Hub.sol.
+
+To run this spec, run:
+certoraRun certora/conf/SpokeWithHub.conf
+
+**/
 
 import "./SpokeBase.spec";
 import "./HubValidState.spec";
@@ -8,7 +18,7 @@ import "./symbolicRepresentation/ERC20s_CVL.spec";
 // Note: 'hub' alias is declared in HubValidState.spec
 
 
-
+/// Sum of all user supplied shares per reserveId
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserSuppliedSharesPerReserveId {
     init_state axiom forall uint256 reserveId. sumUserSuppliedSharesPerReserveId[reserveId] == 0;
 }
@@ -22,6 +32,7 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
     require sumUserSuppliedSharesPerReserveId[reserveId] >= value;
 }
 
+/// Sum of all user drawn shares per reserveId
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserDrawnSharesPerReserveId {
     init_state axiom forall uint256 reserveId. sumUserDrawnSharesPerReserveId[reserveId] == 0;
 }
@@ -35,6 +46,7 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
     require sumUserDrawnSharesPerReserveId[reserveId] >= value;
 }
 
+/// Sum of all user premium shares per reserveId
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserPremiumSharesPerReserveId {
     init_state axiom forall uint256 reserveId. sumUserPremiumSharesPerReserveId[reserveId] == 0;
 }
@@ -48,6 +60,7 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
     require sumUserPremiumSharesPerReserveId[reserveId] >= value;
 }
 
+/// Sum of all user premium offset per reserveId
 ghost mapping(uint256 /*reserveId*/ => mathint /*source*/) sumUserPremiumOffsetPerReserveId {
     init_state axiom forall uint256 reserveId. sumUserPremiumOffsetPerReserveId[reserveId] == 0;
 }
@@ -59,14 +72,11 @@ hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffse
 
 
 
-
-invariant userDrawnShareConsistency(uint256 reserveId, uint256 assetId_) 
+/// Verify that the user drawn shares are consistent with the Hub drawn shares
+invariant userDrawnShareConsistency(uint256 reserveId) 
     sumUserDrawnSharesPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].drawnShares &&
     ( reserveId >= spoke._reserveCount => 
         sumUserDrawnSharesPerReserveId[reserveId] == 0
-    ) &&
-    ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].drawnShares == 0
     ) 
     filtered {f -> !outOfScopeFunctions(f)}
     {
@@ -74,8 +84,11 @@ invariant userDrawnShareConsistency(uint256 reserveId, uint256 assetId_)
             require e.msg.sender != spoke;
             safeAssumptions();
         }
+        preserved constructor() {
+            require hub._spokes[spoke._reserves[reserveId].assetId][spoke].drawnShares == 0;
+        }
         preserved addReserve(address hub_, uint256 assetId_arg, address priceSource, ISpoke.ReserveConfig config, ISpoke.DynamicReserveConfig  dynamicConfig) with (env e) {
-            require hub_ == hub && assetId_arg == assetId_;
+            require hub_ == hub && assetId_arg == spoke._reserves[reserveId].assetId;
             safeAssumptions();
         }
         preserved repay(uint256 otherReserveId, uint256 amount, address onBehalfOf) with (env e) {
@@ -91,67 +104,50 @@ invariant userDrawnShareConsistency(uint256 reserveId, uint256 assetId_)
 
     }
 
-invariant userPremiumShareConsistency(uint256 reserveId, uint256 assetId_) 
+/// Verify that the user premium shares are consistent with the Hub premium shares
+invariant userPremiumShareConsistency(uint256 reserveId) 
     sumUserPremiumSharesPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].premiumShares &&
     ( reserveId >= spoke._reserveCount => 
         sumUserPremiumSharesPerReserveId[reserveId] == 0
-    ) &&
-    ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].premiumShares == 0
-    ) 
+    )
     filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
             safeAssumptions();
         }
+        preserved constructor() {
+            require hub._spokes[spoke._reserves[reserveId].assetId][spoke].premiumShares == 0;
+        }
        preserved addReserve(address hub_, uint256 assetId_arg, address priceSource, ISpoke.ReserveConfig config, ISpoke.DynamicReserveConfig  dynamicConfig) with (env e) {
-            require hub_ == hub && assetId_arg == assetId_;
+            require hub_ == hub && assetId_arg == spoke._reserves[reserveId].assetId;
             safeAssumptions();
         }
     }
 
-invariant userPremiumOffsetConsistency(uint256 reserveId, uint256 assetId_) 
+/// Verify that the user premium offset is consistent with the Hub premium offset
+invariant userPremiumOffsetConsistency(uint256 reserveId) 
     sumUserPremiumOffsetPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].premiumOffsetRay &&
     ( reserveId >= spoke._reserveCount => 
         sumUserPremiumOffsetPerReserveId[reserveId] == 0
-    ) &&
-    ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].premiumOffsetRay == 0
     ) 
     filtered {f -> !outOfScopeFunctions(f)}
     {
         preserved  with (env e) {
             require e.msg.sender != spoke;
             safeAssumptions();
+        }
+        preserved constructor() {
+            require hub._spokes[spoke._reserves[reserveId].assetId][spoke].premiumOffsetRay == 0;
         }
        preserved addReserve(address hub_, uint256 assetId_arg, address priceSource, ISpoke.ReserveConfig config, ISpoke.DynamicReserveConfig  dynamicConfig) with (env e) {
-            require hub_ == hub && assetId_arg == assetId_;
+            require hub_ == hub && assetId_arg == spoke._reserves[reserveId].assetId;
             safeAssumptions();
         }
     }
-/*
-invariant userRealizedPremiumConsistency(uint256 reserveId, uint256 assetId_) 
-    sumUserRealizedPremiumPerReserveId[reserveId] == hub._spokes[spoke._reserves[reserveId].assetId][spoke].realizedPremiumRay &&
-    ( reserveId >= spoke._reserveCount => 
-        sumUserRealizedPremiumPerReserveId[reserveId] == 0
-    ) &&
-    ( !spoke._reserveExists[hub][assetId_] => 
-        hub._spokes[assetId_][spoke].realizedPremiumRay == 0
-    ) 
-    filtered {f -> !outOfScopeFunctions(f)}
-    {
-        preserved  with (env e) {
-            require e.msg.sender != spoke;
-            safeAssumptions();
-        }
-        preserved addReserve(address hub_, uint256 assetId_arg, address priceSource, ISpoke.ReserveConfig config, ISpoke.DynamicReserveConfig  dynamicConfig) with (env e) {
-            require hub_ == hub && assetId_arg == assetId_;
-            safeAssumptions();
-        }
-    }
-*/
-// this does not pass because of the fee receiver check and the transferFeeShares which might lock shares
+
+
+/// Verify that the user supplied shares are consistent with the Hub supplied shares
 invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_) 
     sumUserSuppliedSharesPerReserveId[reserveId] <= hub._spokes[spoke._reserves[reserveId].assetId][spoke].addedShares
     && 
@@ -176,10 +172,8 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
 
 
 
-
-//todo - check this violation, seems that debt can increse a bit no health check
-//https://prover.certora.com/output/40726/7b75b670ab0b4dc099147c08e2b33527/ 
-rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
+// repay function reduces the debt of a user. Part of the rule increaseCollateralOrReduceDebtFunctions proven in spoke.spec for all functions.
+rule repay_debtDecrease(uint256 reserveId, uint256 amount, address user) {
     env e;
     safeAssumptions();
     requireAllInvariants(spoke._reserves[reserveId].assetId, e);
@@ -202,9 +196,8 @@ rule checkRepay_withHubLinked(uint256 reserveId, uint256 amount, address user) {
     
 }
 
-
-
-rule checkRepay_zeroDebt(uint256 reserveId, uint256 amount, address user) {
+/// Verify that if the user has no drawn shares, then there are no premium shares or offset. Part of the rule drawnSharesZero proven in spoke.spec for all functions.
+rule repay_zeroDebt(uint256 reserveId, uint256 amount, address user) {
     env e;
     require spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0);
 

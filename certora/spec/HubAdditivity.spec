@@ -13,6 +13,7 @@ To run this spec file:
 import "./symbolicRepresentation/ERC20s_CVL.spec";
 import "./symbolicRepresentation/Math_CVL.spec";
 import "./libs/SharesMath.spec";
+import "./common.spec";
 
 methods {
     function SharesMath.toSharesDown(uint256 assets, uint256 totalAssets, uint256 totalShares) internal returns (uint256) =>

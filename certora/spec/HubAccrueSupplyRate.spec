@@ -10,7 +10,6 @@ assets / shares is increasing
 import "./HubBase.spec";
 
 using HubHarness as hub;
-using MathWrapper as mathWrapper; 
 
 methods {
     

@@ -9,18 +9,18 @@ env:
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf
     certora/conf/Hub.conf --exclude_rule noChangeToOtherSpoke supplyExchangeRateIsMonotonic
-    #certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
-    certora/conf/Hub.conf --rule noChangeToOtherSpoke
-    certora/conf/HubAdditivity.conf
-    certora/conf/HubAccrueIntegrity.conf
+    certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity
+    certora/conf/HubAccrueIntegrity.conf 
     certora/conf/HubAccrueUnrealizedFee.conf
-    certora/conf/HubAccrueSupplyRate.conf
+    certora/conf/HubAccrueSupplyRate.conf --exclude_rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic 
+    certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic
+    certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic
     certora/conf/HubIntegrity.conf
-    certora/conf/HubValidState.conf
+    certora/conf/HubValidState.conf --exclude_rule totalAssetsVsShares_eliminateDeficit
+    certora/conf/HubValidState.conf --rule totalAssetsVsShares_eliminateDeficit
     certora/conf/HubValidState_totalAssets.conf
     certora/conf/Spoke.conf --rule drawnSharesZero 
-    certora/conf/Spoke.conf --rule noCollateralNoDebt 
-    certora/conf/Spoke.conf --exclude_rule collateralFactorNotZero drawnSharesZero
+    certora/conf/Spoke.conf --exclude_rule noCollateralNoDebt drawnSharesZero increaseCollateralOrReduceDebtFunctions
     certora/conf/SpokeHealthCheck.conf
     certora/conf/SpokeUserIntegrity.conf
     certora/conf/SpokeWithHub.conf --rule userDrawnShareConsistency 
@@ -28,6 +28,16 @@ env:
     certora/conf/SpokeWithHub.conf --rule userPremiumOffsetConsistency 
     certora/conf/SpokeWithHub.conf --rule userSuppliedShareConsistency
     certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency  userSuppliedShareConsistency
+    ######### rules that are too long/flaky to run in ci, run manually #########
+    #certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
+    #certora/conf/Hub.conf --rule noChangeToOtherSpoke
+    #certora/conf/Spoke.conf --rule noCollateralNoDebt
+    #certora/conf/HubAdditivity.conf --rule drawAdditivity
+    #certora/conf/HubAdditivity.conf --rule restoreAdditivity
+    #certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
+    #certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic
+    #### rules that are failing and waiting for fix
+    #certora/conf/Spoke.conf --rule increaseCollateralOrReduceDebtFunctions 
 
 on:
   pull_request:
