@@ -10,9 +10,8 @@ certoraRun certora/conf/SpokeWithHub.conf
 **/
 
 import "./SpokeBase.spec";
-import "./HubValidState.spec";
 import "./symbolicRepresentation/SymbolicPositionStatus.spec";
-import "./symbolicRepresentation/ERC20s_CVL.spec";
+import "./HubValidState.spec";
 
 // Note: 'spoke' alias is declared in SpokeBase.spec
 // Note: 'hub' alias is declared in HubValidState.spec
@@ -170,14 +169,22 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
         }
     }
 
+invariant underlyingAssetConsistency(uint256 reserveId)
+    spoke._reserves[reserveId].underlying!=0 =>spoke._reserves[reserveId].underlying == hub._assets[spoke._reserves[reserveId].assetId].underlying
+    filtered {f -> !outOfScopeFunctions(f)}
+    {
+        preserved {
+            safeAssumptions();
+        }
+        
+    }
 
-
-// repay function reduces the debt of a user. Part of the rule increaseCollateralOrReduceDebtFunctions proven in spoke.spec for all functions.
+// repay function reduces the debt of a user
 rule repay_debtDecrease(uint256 reserveId, uint256 amount, address user) {
     env e;
     safeAssumptions();
     requireAllInvariants(spoke._reserves[reserveId].assetId, e);
-    requireInvariant premiumOffset_Integrity(spoke._reserves[reserveId].assetId, spoke,e); 
+    requireInvariant premiumOffset_Integrity(spoke._reserves[reserveId].assetId, spoke); 
 
     require userGhost == user;
     
@@ -211,12 +218,12 @@ function safeAssumptions() {
     require forall uint256 reserveId. forall uint256 otherReserveId. 
     (reserveId != otherReserveId ) => spoke._reserves[reserveId].assetId != spoke._reserves[otherReserveId].assetId ;
 
-    // a reservid that exists has underlying and hub
+    // a reserveId that exists has underlying and hub
     require forall uint256 reserveId. (reserveId < spoke._reserveCount  => 
     // has underlying and hub
     (spoke._reserves[reserveId].underlying != 0 && spoke._reserves[reserveId].hub == hub && spoke._reserveExists[spoke._reserves[reserveId].hub][spoke._reserves[reserveId].assetId] ));
 
-    // a reservid that does not exist has no underlying, hub, assetId
+    // a reserveId that does not exist has no underlying, hub, assetId
     require forall uint256 reserveId. reserveId >= spoke._reserveCount => (
     // has no underlying, hub, assetId
     spoke._reserves[reserveId].underlying == 0 && spoke._reserves[reserveId].assetId == 0 && spoke._reserves[reserveId].hub == 0  && spoke._reserves[reserveId].dynamicConfigKey == 0); 

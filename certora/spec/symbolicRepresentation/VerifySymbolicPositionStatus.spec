@@ -1,3 +1,11 @@
+/**
+Verification of the summarization of the PositionStatus.spec library.
+All rules of PositionStatus.spec are verified to hold also on the summarization .
+
+To run this spec file:
+ certoraRun certora/conf/VerifySymbolicPositionStatus.conf 
+**/
+
 import "./SymbolicPositionStatus.spec";
 import "../libs/PositionStatus.spec";
 
@@ -9,17 +17,3 @@ use rule next;
 use rule nextBorrowing;
 use rule nextCollateral;
 
-
-/*
-methods {
-    function isBorrowing(uint256 reserveId) external returns (bool) envfree;
-    function setBorrowing(uint256 reserveId, bool borrowing) external envfree;
-}
-rule setBorrowing(uint256 reserveId1, bool borrowing) {
-    uint256 reserveId2;
-    bool before = isBorrowing(reserveId2);
-    setBorrowing(reserveId1, borrowing);
-    bool after = isBorrowing(reserveId2);
-    assert(reserveId1 != reserveId2 => before == after);
-    assert(reserveId1 == reserveId2 => borrowing == after);
-}*/

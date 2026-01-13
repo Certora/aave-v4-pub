@@ -46,14 +46,22 @@ Verifying by checking that any bit below the fls(x) is not set.
 rule fls_integrity(uint256 x, uint16 pos) {
     // base check
     assert x == 0 <=> fls(x) == 256;
+    assert x == 1 <=> fls(x) == 0;
     
     uint256 r = fls(x);
+    assert r <= 256;
     assert (pos > r  && pos < 256 ) =>  !isBitTrue(x, pos);
-    assert r < 256 => isBitTrue(x, assert_uint16(r));
+    assert r != 256 => isBitTrue(x, assert_uint16(r));
+    assert (x != 0) => (x >> r == 1);
 }
 
 /// @title fls should never revert
 rule fls_noRevert(uint256 x) {
     fls@withrevert(x);
+    assert !lastReverted; 
+}
+
+rule isBitTrueNeverRevert(uint256 x, uint16 pos) {
+    isBitTrue@withrevert(x, pos);
     assert !lastReverted; 
 }

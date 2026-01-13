@@ -10,13 +10,13 @@ methods {
     function _.mulDivUp(uint256 a, uint256 b, uint256 c) internal => 
         mulDivUpCVL(a,b,c) expect uint256;
 
-    function _.rayMulDown(uint256 a, uint256 b) internal  => 
+    function _.rayMulDown(uint256 a, uint256 b) internal => 
         mulDivRayDownCVL(a,b) expect uint256;
 
-    function _.rayMulUp(uint256 a, uint256 b) internal  => 
+    function _.rayMulUp(uint256 a, uint256 b) internal => 
         mulDivRayUpCVL(a,b) expect uint256;
     
-    function _.rayDivDown(uint256 a, uint256 b) internal  => 
+    function _.rayDivDown(uint256 a, uint256 b) internal => 
         mulDivDownCVL(a,RAY,b) expect uint256;
     
     function _.fromRayUp(uint256 a) internal => 
@@ -38,8 +38,9 @@ methods {
     function PercentageMath.percentMulUp(uint256 percentage, uint256 value) internal returns (uint256) =>  
         mulDivUpCVL(value,percentage,PERCENTAGE_FACTOR);
 
-    function _._checkCanCall(address caller, bytes calldata data) internal => NONDET; 
+    function _._checkCanCall(address caller, bytes calldata data) internal => checkCanCallCVL(caller) expect bool; 
     
+    // assume check-effect-interaction. this will not callback to the hub
     function _.setInterestRateData(uint256 assetId, bytes data) external => NONDET; 
 }
 
@@ -55,3 +56,10 @@ persistent ghost uint256 WAD {
 persistent ghost uint256 PERCENTAGE_FACTOR {
     axiom PERCENTAGE_FACTOR == 10000;
     }
+
+persistent ghost address checkedCanCallGhost;
+
+function checkCanCallCVL(address caller) returns (bool) {
+    checkedCanCallGhost = caller;
+    return true;
+}

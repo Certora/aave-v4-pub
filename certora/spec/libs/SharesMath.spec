@@ -8,11 +8,11 @@ import "../HubBase.spec";
 
 methods { 
     // envfree functions 
-    function toSharesDown(uint256 assets, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree ;
-    function toAssetsDown(uint256 shares, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree ;
+    function toSharesDown(uint256 assets, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree optional;
+    function toAssetsDown(uint256 shares, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree optional;
     
-    function toSharesUp(uint256 assets, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree ;
-    function toAssetsUp(uint256 shares, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree ;
+    function toSharesUp(uint256 assets, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree optional;
+    function toAssetsUp(uint256 shares, uint256 totalAssets, uint256 totalShares) external  returns (uint256) envfree optional;
 
 }
 
@@ -35,9 +35,7 @@ toSharesUp(x) + toSharesUp(y) >= toSharesUp(x+y)
 rule toSharesUp_additivity(uint256 assetId, uint256 x, uint256 y){
     uint256 totalAssets; uint256 totalShares;
     require totalAssets >= totalShares;
-    require totalAssets == 0 <=> totalShares == 0; //todo : verify this
     require totalAssets >= x + y;
-
 
     uint256 sharesForX = toSharesUp(x, totalAssets, totalShares);
     
@@ -137,7 +135,6 @@ toAssetsDown(x) + toAssetsDown(y) <=  toAssetsDown(x+y)
 rule toAssetsDown_additivity(uint256 assetId, uint256 x, uint256 y){
     uint256 totalAssets; uint256 totalShares;
     require totalAssets >= totalShares;
-    require totalAssets == 0 <=> totalShares == 0; //todo : verify this
 
     uint256 assetsForX = toAssetsDown(x, totalAssets, totalShares);
     uint256 assetsForYAfterX = toAssetsDown(y, require_uint256(totalAssets + assetsForX), require_uint256(totalShares + x));

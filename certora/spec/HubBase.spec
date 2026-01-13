@@ -15,7 +15,8 @@ Here we have only safe assumptions, safe summarization that are either proved in
 methods {
     
     function _.calculateInterestRate(uint256 assetId, uint256 liquidity, uint256 drawn, uint256 deficit, uint256 swept) external  => NONDET;
-
+    
+  // overappoximation - proved in libs/Premium.spec
     function Premium.calculatePremiumRay(
     uint256 premiumShares,
     int256 premiumOffsetRay,

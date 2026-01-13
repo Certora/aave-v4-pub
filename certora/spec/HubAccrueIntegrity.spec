@@ -86,14 +86,15 @@ rule baseDebtIndex_increasing(uint256 assetId) {
 
     env e;
     require e.block.timestamp >  hub._assets[assetId].lastUpdateTimestamp && e.block.timestamp <= max_uint40;
-    uint256 baseDebt = getAssetTotalOwed(e, assetId);
+    mathint baseShareAndPremium = hub._assets[assetId].drawnShares + hub._assets[assetId].premiumShares;
 
     accrueInterest(e,assetId);
     
     assert hub._assets[assetId].drawnIndex >= before;
     // if there is debt  then the drawnIndex should not increase
     assert (hub._assets[assetId].drawnRate >= mathWrapper.SECONDS_PER_YEAR() 
-            && baseDebt > -hub._assets[assetId].premiumOffsetRay) =>
+            // debt is not only the unpaid non interest bearing premium debt 
+             && baseShareAndPremium != 0) =>
              hub._assets[assetId].drawnIndex > before;
     satisfy hub._assets[assetId].drawnRate == mathWrapper.SECONDS_PER_YEAR();
 }
@@ -110,13 +111,13 @@ rule premiumOffset_Integrity_accrue(uint256 assetId, address spokeId) {
     //requireInvariant baseDebtIndexMin(assetId); 
     require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
 
-    require previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffsetRay && 
-    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffsetRay; 
+    require hub._assets[assetId].premiumShares * hub._assets[assetId].drawnIndex >=  hub._assets[assetId].premiumOffsetRay && 
+    hub._spokes[assetId][spokeId].premiumShares * hub._assets[assetId].drawnIndex >=  hub._spokes[assetId][spokeId].premiumOffsetRay; 
     
     accrueInterest(e, assetId);
 
-    assert previewRestoreByShares(e,assetId,hub._assets[assetId].premiumShares) >=  hub._assets[assetId].premiumOffsetRay && 
-    previewRestoreByShares(e,assetId,hub._spokes[assetId][spokeId].premiumShares) >=  hub._spokes[assetId][spokeId].premiumOffsetRay;
+    assert hub._assets[assetId].premiumShares * hub._assets[assetId].drawnIndex >=  hub._assets[assetId].premiumOffsetRay && 
+    hub._spokes[assetId][spokeId].premiumShares * hub._assets[assetId].drawnIndex >=  hub._spokes[assetId][spokeId].premiumOffsetRay;
     
 }
 
@@ -164,6 +165,7 @@ rule viewFunctionsIntegrity(uint256 assetId, method f) filtered { f-> f.isView &
 
     // get back to init
     getAsset(e, assetId) at init;
+    //todo - add revert check 
     mathint ret_withoutAccrue = callViewFunction(f, e, args);
     
     assert ret_withAccrue == ret_withoutAccrue;
@@ -286,3 +288,5 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
     
 
 }
+
+/// @title no change to other fields when accrue is called

@@ -1,3 +1,4 @@
+import "./ERC20s_CVL.spec";
 
 methods {
     function _.previewRemoveByShares(uint256 assetId, uint256 shares) external with (env e) => previewRemoveBySharesCVL(assetId, shares, e) expect uint256;
@@ -16,17 +17,17 @@ methods {
 // Supply Operations
     function _.add(uint256 assetId, uint256 amount) external with (env e) => addSummaryCVL(assetId, amount, e) expect uint256;
 // Withdraw Operations  
-    function _.remove(uint256 assetId, uint256 amount, address to) external with (env e) => removeSummaryCVL(assetId, amount, to, e) expect uint256;
+    function _.remove(uint256 assetId, uint256 amount, address to) external with (env e) => removeSummaryCVL(calledContract, assetId, amount, to, e) expect uint256;
 // Borrow Operations
-    function _.draw(uint256 assetId, uint256 amount, address to) external with (env e) => drawSummaryCVL(assetId, amount, to, e) expect uint256;
+    function _.draw(uint256 assetId, uint256 amount, address to) external with (env e) => drawSummaryCVL(calledContract, assetId, amount, to, e) expect uint256;
 // Repay Operations
     function _.restore(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => restoreSummaryCVL(assetId, drawnAmount, premiumDelta, e) expect uint256;
 // Report Deficit Operations
-    function _.reportDeficit(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => previewRestoreByAssetsCVL(assetId, drawnAmount, e) expect uint256;
+    function _.reportDeficit(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) external with (env e) => reportDeficitSummaryCVL(calledContract, assetId, drawnAmount, premiumDelta, e) expect uint256;
 // Eliminate Deficit Operations
     function _.eliminateDeficit(uint256 assetId, uint256 amount, address spokeAddress) external with (env e)  => previewRemoveByAssetsCVL(assetId, amount, e) expect uint256; 
-//refresh premium
-    function _.refreshPremium(uint256 assetId, IHubBase.PremiumDelta premiumDelta) external => HAVOC_ECF;
+//refresh premium - does not change balances and does not return anything
+    function _.refreshPremium(uint256 assetId, IHubBase.PremiumDelta premiumDelta) external => NONDET;
 
 // Pay Fee Shares Operations
     function _.payFeeShares(uint256 assetId, uint256 shares) external => NONDET;
@@ -34,7 +35,6 @@ methods {
     function _.getAssetUnderlyingAndDecimals(uint256 assetId) external => getAssetUnderlyingAndDecimalsCVL(assetId) expect (address, uint8);
 
 }
-
 
 // symbolic debt index: for each assetId and block timestamp there is an index
 // the index is monotonic increasing
@@ -52,10 +52,22 @@ persistent ghost mapping(uint256 /*assetId */ => mapping(uint256 /*blockTimestam
     axiom forall uint256 assetId. forall uint256 blockTimestamp. shareToAssetsRatio[assetId][blockTimestamp] >= RAY;
 }
 
+ghost mapping(uint256 /*assetId*/ => address /*underlying*/) assetUnderlying;
+
+ghost mapping(uint256 /*assetId*/ => uint8 /*decimals*/) assetDecimals;
+
+function getAssetUnderlyingAndDecimalsCVL(uint256 assetId) returns (address, uint8) {
+    return (assetUnderlying[assetId], assetDecimals[assetId]);
+}
+
 // toAddedSharesDown : assets.toSharesDown(asset.totalAddedAssets(), asset.totalAddedShares());
 function previewAddByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
     uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
-    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+    return require_uint256((assets * RAY) / ratio);
+}
+function previewAddBySharesCVL(uint256 assetId, uint256 shares, env e) returns (uint256) {
+    uint256 ratio = shareToAssetsRatio[assetId][e.block.timestamp];
+    return require_uint256((shares * ratio + RAY - 1) / RAY);
 }
 
 // toAddedAssetsDown : shares.toAssetsDown(asset.totalAddedAssets(), asset.totalAddedShares());
@@ -91,7 +103,7 @@ function previewRestoreBySharesCVL(uint256 assetId, uint256 shares, env e) retur
 // toDrawnSharesDown : assets.rayDivDown(asset.getDrawnIndex());
 function previewRestoreByAssetsCVL(uint256 assetId, uint256 assets, env e) returns (uint256) {
     uint256 ratio = indexOfAssetPerBlock[assetId][e.block.timestamp];
-    return require_uint256(((assets * RAY) + ratio -1) / ratio);
+    return require_uint256((assets * RAY) / ratio);
 }
 
 // getAssetDrawnIndex: returns the drawn index for an asset at a given block timestamp
@@ -99,36 +111,45 @@ function getAssetDrawnIndexCVL(uint256 assetId, env e) returns (uint256) {
     return indexOfAssetPerBlock[assetId][e.block.timestamp];
 }
 
-// CVL function summarizations for Hub operations with zero amount checks
+// CVL function summarizations for Hub operations with zero amount checks and reflecting balance changes
+
 function addSummaryCVL(uint256 assetId, uint256 amount, env e) returns (uint256) {
     require amount > 0;
     // Return computed shares based on amount and asset using existing preview function
-    return previewAddByAssetsCVL(assetId, amount, e);
+    uint256 shares = previewAddByAssetsCVL(assetId, amount, e);
+    require shares > 0; // rule nothingForZero_add
+    return shares;
 }
 
-function removeSummaryCVL(uint256 assetId, uint256 amount, address to, env e) returns (uint256) {
+function removeSummaryCVL(address hub,uint256 assetId, uint256 amount, address to, env e) returns (uint256) {
     require amount > 0;
     // Return computed shares based on amount and asset using existing preview function
-    return previewRemoveByAssetsCVL(assetId, amount, e);
+    uint256 shares = previewRemoveByAssetsCVL(assetId, amount, e);
+    require shares > 0; // rule nothingForZero_remove
+    // update balanceOf to 
+    safeTransferCVL(assetUnderlying[assetId], hub, to, amount);
+    return shares;
 }
 
-function drawSummaryCVL(uint256 assetId, uint256 amount, address to, env e) returns (uint256) {
+function drawSummaryCVL(address hub, uint256 assetId, uint256 amount, address to, env e) returns (uint256) {
     require amount > 0;
     // Return computed drawn shares based on amount and asset using existing preview function
+    safeTransferCVL(assetUnderlying[assetId], hub, to, amount);
     return previewDrawByAssetsCVL(assetId, amount, e);
 }
 
 function restoreSummaryCVL(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta,  env e) returns (uint256) {
-    require drawnAmount > 0 ;
+    //require drawnAmount > 0 ;
     // Return computed restored shares based on drawn amount using existing preview function
     return previewRestoreByAssetsCVL(assetId, drawnAmount, e);
 }
 
-
-ghost mapping(uint256 /*assetId*/ => address /*underlying*/) assetUnderlying;
-
-ghost mapping(uint256 /*assetId*/ => uint8 /*decimals*/) assetDecimals;
-
-function getAssetUnderlyingAndDecimalsCVL(uint256 assetId) returns (address, uint8) {
-    return (assetUnderlying[assetId], assetDecimals[assetId]);
+persistent ghost bool deficitReportedFlag;
+function reportDeficitSummaryCVL(address hub, uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta, env e) returns (uint256) {
+    deficitReportedFlag = true;
+    // Return computed restored shares based on drawn amount using existing preview function
+    return previewRestoreByAssetsCVL(assetId, drawnAmount, e);
+    
 }
+
+

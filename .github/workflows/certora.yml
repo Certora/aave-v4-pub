@@ -28,6 +28,13 @@ env:
     certora/conf/SpokeWithHub.conf --rule userPremiumOffsetConsistency 
     certora/conf/SpokeWithHub.conf --rule userSuppliedShareConsistency
     certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency  userSuppliedShareConsistency
+    certora/conf/SpokeIntegrity.conf
+    certora/conf/SpokeHealthFactor.conf
+    certora/conf/Spoke_noCollateralNoDebt.conf
+    certora/conf/Liquidation.conf
+    certora/conf/LiquidationUserIntegrity.conf
+    certora/conf/libs/LiquidationLogic.conf
+    certora/conf/libs/LiquidationLogic_Bonus.conf
     ######### rules that are too long/flaky to run in ci, run manually #########
     #certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
     #certora/conf/Hub.conf --rule noChangeToOtherSpoke

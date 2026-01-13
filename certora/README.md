@@ -12,6 +12,7 @@ certora/
 ├── harness/                 # Solidity harness contracts for verification
 │   ├── HubHarness.sol      # Hub contract harness exposing internal functions
 │   ├── LibBitHarness.sol   # LibBit library harness
+│   ├── LiquidationLogicHarness.sol  # LiquidationLogic library harness
 │   ├── MathWrapper.sol     # Math library wrapper for verification
 │   └── PremiumWrapper.sol  # Premium library wrapper for verification
 ├── spec/                    # CVL specification files
@@ -34,15 +35,23 @@ The formal verification focuses on the following critical safety properties:
 - **No Collateral → No Debt** - Users without collateral cannot accumulate debt
 - **Borrowing Flag Consistency** - Borrowing status accurately reflects drawn shares
 - **Health Factor Maintenance** - User health stays above liquidation threshold after operations
+- **Premium Debt Consistency** - Premium shares and offset maintain consistent relationship with drawn shares
 
 ### State Consistency
 - **Spoke Isolation** - Operations on one spoke don't affect other spokes
 - **Sum Invariants** - Sum of spoke supplies/drawn shares equals totals
 - **Reserve ID Validity** - Reserve mappings remain consistent
+- **Dynamic Config Consistency** - User dynamic config keys are consistent with reserve config
 
 ### Accrue Integrity
 - **Idempotency** - Calling accrue twice is equivalent to calling once
 - **Index Monotonicity** - Interest indices only increase
+
+### Liquidation Safety
+- **Healthy Accounts Protected** - Accounts with health factor above threshold cannot be liquidated
+- **Debt Monotonicity** - Liquidation always reduces debt
+- **Collateral Bounds** - Collateral seized does not exceed user's total collateral
+- **Liquidation Bonus Bounds** - Bonus is bounded between no bonus and max bonus
 
 ## Prerequisites
 
@@ -174,32 +183,71 @@ For more information on the Certora Prover and CVL specification language, see:
 ### `SpokeBase.spec`
 **Base definitions for Spoke specifications.**
 
-- **Imports:** `Math_CVL.spec`, `SymbolicPositionStatus.spec`, `ERC20s_CVL.spec`
+- **Imports:** `SpokeBaseSummaries.spec`
 - **Purpose:** Safe assumptions and summarizations for all Spoke spec files
+- **Key Features:**
+  - `setup()` function with common requirements
+  - `outOfScopeFunctions` definition for filtering
+  - `increaseCollateralOrReduceDebtFunctions` definition
+  - Paused/frozen flag ghost variables
+
+### `SpokeBaseSummaries.spec`
+**Method summaries for Spoke specifications.**
+
+- **Imports:** `common.spec`, `SymbolicPositionStatus.spec`
+- **Purpose:** Contains method summaries shared across Spoke specs
 - **Key Summaries:**
   - Sorting functions → CVL implementation
   - Price functions → Symbolic representation
   - Authority checks → NONDET
 
 ### `Spoke.spec`
-**Main Spoke verification rules.**
+**Main Spoke verification rules and invariants.**
 
 - **Config:** `certora/conf/Spoke.conf`, `certora/conf/Spoke_noCollateralNoDebt.conf`
-- **Imports:** `SpokeBase.spec`
+- **Imports:** `SpokeBase.spec`, `SymbolicPositionStatus.spec`, `SymbolicHub.spec`
 - **Purpose:** Spoke-independent verification (no link to Hub)
 - **Key Features:**
   - Symbolic Hub summaries for external calls
   - Index tracking per asset per block
   - User position invariants
-- **Key Rules/Invariants:**
+  - userGhost tracking for single-user operations
+- **Key Rules:**
+  - `increaseCollateralOrReduceDebtFunctions` - Functions either increase collateral or reduce debt
+  - `paused_noChange` - No state changes when paused
+  - `frozen_onlyReduceDebtAndCollateral` - Frozen reserves only allow debt/collateral reduction
+  - `updateUserRiskPremium_preservesPremiumDebt` - Risk premium updates preserve premium debt
+  - `noCollateralNoDebt` - User with no collateral cannot have debt (critical safety property)
+  - `collateralFactorNotZero` - Borrowed reserves must have non-zero collateral factor
+  - `deterministicUserDebtValue` - User debt calculation is deterministic
+- **Key Invariants:**
   - `isBorrowingIFFdrawnShares` - Borrowing flag set iff user has drawn shares
   - `drawnSharesZero` - Zero drawn shares implies zero premium shares
-  - `noCollateralNoDebt` - User with no collateral cannot have debt (critical safety property)
   - `validReserveId` - Reserve ID validity and consistency
-  - `increaseCollateralOrReduceDebtFunctions` - Functions either increase collateral or reduce debt
-  - `collateralFactorNotZero` - Borrowed reserves must have non-zero collateral factor
+  - `validReserveId_single` - Single reserve ID validity
+  - `validReserveId_singleUser` - Reserve ID validity for single user
   - `uniqueAssetIdPerReserveId` - Each reserve maps to unique asset
+  - `realizedPremiumRayConsistency` - Premium offset <= premium shares * drawn index
+  - `drawnSharesRiskEQPremiumShares` - Drawn shares * risk premium == premium shares
+  - `dynamicConfigKeyConsistency` - User config key <= reserve config key
 - **Additional Config:** `Spoke_noCollateralNoDebt.conf` runs `noCollateralNoDebt` with parallel splitting prover args
+
+### `SpokeIntegrity.spec`
+**Spoke operation integrity rules.**
+
+- **Config:** `certora/conf/SpokeIntegrity.conf`
+- **Imports:** `SpokeBase.spec`, `SymbolicPositionStatus.spec`, `SymbolicHub.spec`
+- **Purpose:** Verifies integrity of individual Spoke operations
+- **Key Rules:**
+  - `nothingForZero_supply` - Supply with zero amount has no effect
+  - `nothingForZero_withdraw` - Withdraw with zero amount has no effect
+  - `nothingForZero_borrow` - Borrow with zero amount has no effect
+  - `nothingForZero_repay` - Repay with zero amount has no effect
+  - `supply_noChangeToOther` - Supply doesn't affect other users
+  - `withdraw_noChangeToOther` - Withdraw doesn't affect other users
+  - `borrow_noChangeToOther` - Borrow doesn't affect other users
+  - `repay_noChangeToOther` - Repay doesn't affect other users
+  - `onlyPositionManagerCanChange` - Only position manager can modify positions
 
 ### `SpokeHealthCheck.spec`
 **Health factor verification.**
@@ -209,6 +257,19 @@ For more information on the Certora Prover and CVL specification language, see:
 - **Purpose:** Verifies that health factor is checked after position updates
 - **Key Rules:**
   - `userHealthStaysAboveThreshold` - Health factor maintained after operations
+
+### `SpokeHealthFactor.spec`
+**Advanced health factor verification with ghost tracking.**
+
+- **Config:** `certora/conf/SpokeHealthFactor.conf`
+- **Imports:** `SpokeBaseSummaries.spec`, `SymbolicPositionStatus.spec`
+- **Purpose:** Verifies health factor using ghost variables for collateral and debt tracking
+- **Key Features:**
+  - Ghost variables for total collateral and debt values
+  - Hooks on position storage to track value changes
+  - Symbolic price functions
+- **Key Rules:**
+  - `userHealthAboveThreshold` - Health factor stays above liquidation threshold
 
 ### `SpokeUserIntegrity.spec`
 **User position integrity.**
@@ -220,13 +281,42 @@ For more information on the Certora Prover and CVL specification language, see:
 **Spoke-Hub integration verification.**
 
 - **Config:** `certora/conf/SpokeWithHub.conf`
-- **Imports:** `SpokeBase.spec`, `HubValidState.spec`
+- **Imports:** `SpokeBase.spec`, `SymbolicPositionStatus.spec`, `HubValidState.spec`
 - **Purpose:** Verifies consistency between Spoke user positions and Hub spoke data
 - **Key Invariants:**
   - `userDrawnShareConsistency` - User drawn shares match Hub records
   - `userSuppliedShareConsistency` - User supplied shares match Hub records
   - `userPremiumShareConsistency` - Premium shares consistency
   - `userPremiumOffsetConsistency` - Premium offset consistency
+  - `underlyingAssetConsistency` - Underlying asset matches Hub asset
+
+---
+
+## Liquidation Specifications
+
+### `Liquidation.spec`
+**Liquidation operation verification.**
+
+- **Config:** `certora/conf/Liquidation.conf`
+- **Imports:** `SpokeBase.spec`, `SymbolicPositionStatus.spec`, `SymbolicHub.spec`
+- **Purpose:** Verifies safety properties of liquidation operations
+- **Key Rules:**
+  - `sanityCheck` - Basic sanity check for liquidation
+  - `borrowingFlagSetIFFdrawnShares_liquidationCall` - Borrowing flag consistency after liquidation
+  - `healthyAccountCannotBeLiquidated` - Accounts above health threshold cannot be liquidated
+  - `paused_noLiquidation` - No liquidation when paused
+  - `monotonicityOfDebtDecrease_liquidationCall` - Liquidation always decreases debt
+  - `moreThanOneCollateral_noReportDeficit` - No deficit reported when multiple collaterals exist
+  - `noChangeToOtherAccounts_liquidationCall` - Liquidation doesn't affect uninvolved accounts
+
+### `LiquidationUserIntegrity.spec`
+**Liquidation user isolation verification.**
+
+- **Config:** `certora/conf/LiquidationUserIntegrity.conf`
+- **Imports:** `SpokeBase.spec`, `SymbolicPositionStatus.spec`, `SymbolicHub.spec`
+- **Purpose:** Verifies that liquidation only affects the liquidated user
+- **Key Rules:**
+  - `onlyOneUserDebtChanges_liquidationCall` - Only liquidated user's debt changes
 
 ---
 
@@ -253,6 +343,36 @@ For more information on the Certora Prover and CVL specification language, see:
   - Monotonicity of `toSharesUp`, `toSharesDown`, `toAssetsUp`, `toAssetsDown`
   - Additivity properties
   - Inverse relationships
+
+### `libs/LiquidationLogic.spec`
+**Liquidation amounts calculation verification.**
+
+- **Config:** `certora/conf/libs/LiquidationLogic.conf`
+- **Harness:** `LiquidationLogicHarness.sol`
+- **Purpose:** Verifies `_calculateLiquidationAmounts` function properties
+- **Key Rules:**
+  - `sanityCheck` - Basic sanity check
+  - `debtToLiquidateNotExceedBalance` - Debt to liquidate bounded by reserve balance
+  - `debtToLiquidateNotExceedDebtToCover` - Debt to liquidate bounded by debt to cover
+  - `collateralToLiquidatorNotExceedTotal` - Collateral seized bounded by total
+  - `collateralToLiquidateValueLessThanDebtToLiquidate_assets` - Collateral value <= debt value (assets)
+  - `collateralToLiquidateValueLessThanDebtToLiquidate_shares` - Collateral value <= debt value (shares)
+  - `collateralToLiquidateValueLessThanDebtToLiquidate_fullRayDebt` - Collateral value <= debt value (full ray)
+
+### `libs/LiquidationLogic_Bonus.spec`
+**Liquidation bonus calculation verification.**
+
+- **Config:** `certora/conf/libs/LiquidationLogic_Bonus.conf`
+- **Harness:** `LiquidationLogicHarness.sol`
+- **Purpose:** Verifies `calculateLiquidationBonus` function properties
+- **Key Rules:**
+  - `sanityCheck` - Basic sanity check
+  - `maxBonusWhenLowHealthFactor` - Max bonus when health factor <= threshold for max bonus
+  - `bonusIsAtLeastNoBonus` - Bonus >= PERCENTAGE_FACTOR (no negative bonus)
+  - `bonusDoesNotExceedMax` - Bonus <= max liquidation bonus
+  - `monotonicityOfBonus` - Lower health factor → higher bonus
+  - `bonusAtThreshold` - Bonus equals PERCENTAGE_FACTOR at liquidation threshold
+  - `zeroBonusFactorMeansNoMinBonus` - Zero bonus factor means no minimum bonus
 
 ### `libs/LibBit.spec`
 **Bit manipulation library verification.**
@@ -292,9 +412,25 @@ For more information on the Certora Prover and CVL specification language, see:
 **Symbolic Hub for Spoke verification.**
 
 - **Purpose:** Allows verifying Spoke independently of Hub implementation
+- **Key Features:**
+  - Ghost mappings for asset indices per block
+  - CVL implementations of Hub functions (add, remove, draw, restore, etc.)
+  - Asset underlying address tracking
 
 ### `symbolicRepresentation/SymbolicPositionStatus.spec`
 **Symbolic position status handling.**
+
+- **Purpose:** Provides ghost mappings and CVL functions for position status
+- **Key Features:**
+  - `isBorrowing` and `isUsingAsCollateral` ghost mappings
+  - `nextBorrowingCVL` and `nextCollateralCVL` iteration functions
+  - Method summaries for PositionStatusMap library functions
+
+### `symbolicRepresentation/VerifySymbolicPositionStatus.spec`
+**Verification of symbolic position status.**
+
+- **Config:** `certora/conf/libs/VerifySymbolicPositionStatus.conf`
+- **Purpose:** Verifies that symbolic representations match actual implementations
 
 ---
 
@@ -330,17 +466,32 @@ common.spec
     │       ├── HubAccrueUnrealizedFee.spec
     │       └── HubAdditivity.spec (via SharesMath.spec)
     │
-    └── SpokeBase.spec
-            ├── Spoke.spec
-            ├── SpokeHealthCheck.spec
-            ├── SpokeUserIntegrity.spec
-            └── SpokeHubIntegrity.spec
+    └── SpokeBaseSummaries.spec
+            └── SpokeBase.spec
+                    ├── Spoke.spec
+                    ├── SpokeIntegrity.spec
+                    ├── SpokeHealthCheck.spec
+                    ├── SpokeHealthFactor.spec
+                    ├── SpokeUserIntegrity.spec
+                    ├── SpokeHubIntegrity.spec
+                    ├── Liquidation.spec
+                    └── LiquidationUserIntegrity.spec
 
 symbolicRepresentation/
     ├── Math_CVL.spec (used by most specs)
     ├── ERC20s_CVL.spec (used by most specs)
-    ├── SymbolicHub.spec (used by SpokeHealthCheck)
-    └── SymbolicPositionStatus.spec (used by SpokeBase, SpokeHubIntegrity)
+    ├── SymbolicHub.spec (used by Spoke specs)
+    ├── SymbolicPositionStatus.spec (used by Spoke specs)
+    └── VerifySymbolicPositionStatus.spec
+
+libs/
+    ├── Math.spec
+    ├── SharesMath.spec
+    ├── LibBit.spec
+    ├── PositionStatus.spec
+    ├── Premium.spec
+    ├── LiquidationLogic.spec
+    └── LiquidationLogic_Bonus.spec
 ```
 
 ---
@@ -364,6 +515,11 @@ Wraps LibBit library for verification.
 Wraps Premium library for verification:
 - Exposes `Premium.calculatePremiumRay()` for CVL equivalence testing
 
+### `LiquidationLogicHarness.sol`
+Wraps LiquidationLogic library for verification:
+- Exposes `_calculateLiquidationAmounts()` for liquidation amount verification
+- Exposes `calculateLiquidationBonus()` for bonus calculation verification
+
 ---
 
 ## Tips for Running Verification
@@ -372,12 +528,18 @@ Wraps Premium library for verification:
 
 2. **Split Long-Running Rules:** Use `--split_rules` for rules that may timeout:
    ```bash
-   certoraRun certora/conf/Spoke.conf --split_rules drawnSharesZero noCollateralNoDebt
+   certoraRun certora/conf/Spoke.conf --split_rules drawnSharesZero
    ```
 
 3. **Run Specific Rules:** Use `--rule` to run individual rules:
    ```bash
    certoraRun certora/conf/Hub.conf --rule totalAssetsCompareToSuppliedAmount --msg "Hub totalAssets"
+   ```
+
+4. **Check Commented Split Rules:** Some conf files have commented `split_rules`. When running manually, add them as flags:
+   ```bash
+   # For Hub.conf with //"split_rules": ["noChangeToOtherSpoke","supplyExchangeRateIsMonotonic"]
+   certoraRun certora/conf/Hub.conf --split_rules noChangeToOtherSpoke supplyExchangeRateIsMonotonic
    ```
 
 5. **View Results:** Check the Certora Prover dashboard at https://prover.certora.com

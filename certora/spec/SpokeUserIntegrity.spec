@@ -1,14 +1,18 @@
 /**
-@title Prove that only one user's account is updated and used at a time
+@title Prove that only one user's account is updated and used in a single operation
+(Beside liquidationCall and multicall)
 
 This allows us to assume that the user is the same throughout the operation in the Spoke.spec rules
+
+to run this spec, run:
+certoraRun certora/conf/SpokeUserIntegrity.conf
+
 */
 
 using SpokeInstance as spoke;
 
 methods {
-    // Note: _calculateLiquidationAmounts returns a struct, cannot use NONDET with struct return types
-    // Summary removed - function will be inlined or handled by default summary 
+    
 
     function Math.mulDiv(uint256 x, uint256 y, uint256 denominator) internal  returns (uint256) => NONDET ALL;
     function Math.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) internal returns (uint256) => NONDET ALL;

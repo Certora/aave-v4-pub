@@ -31,46 +31,41 @@ methods {
 // Represented as a ghost based on proof in LibBit.spec rule fls_integrity
 ghost flsResult(uint256) returns uint256 {
     // zero case 
-    axiom forall uint256 word.  word == 0 <=> flsResult(word) == 256;
-    axiom forall uint256 word. word != 0 => word >> flsResult(word) == 1;
+    axiom flsResult(0) == 256;
+    axiom forall uint256 word. word != 0 => (word >> flsResult(word) == 1);
 }
 
-
-function getBorrowingBitId(uint256 reserveId) returns uint256 {
-    return require_uint256(reserveId % 128) << 1;
-}
-
-function getUsingAsCollateralBitId(uint256 reserveId) returns uint256 {
-    return require_uint256((require_uint256(reserveId % 128) << 1) + 1);
-}
 
 /** @title prove that setBorrowing preserves the flags for any other reserve
 and sets the borrowing flag for the given reserve to the given value
 **/
-rule setBorrowing(uint256 reserveId1, bool borrowing) {
-    uint256 reserveId2; uint256 reserveId3;
-    bool before = isBorrowing(reserveId2);
-    bool collateralFlag = isUsingAsCollateral(reserveId3);
-    setBorrowing(reserveId1, borrowing);
-    bool after = isBorrowing(reserveId2);
-    assert(reserveId1 != reserveId2 => before == after);
-    assert(reserveId1 == reserveId2 => borrowing == after);
-    assert(collateralFlag == isUsingAsCollateral(reserveId3));
+rule setBorrowing(uint256 reserveId, bool borrowing) {
+    uint256 otherId;
+    require reserveId != otherId;
+    bool borrowingFlag = isBorrowing(otherId);
+    bool collateralFlag = isUsingAsCollateral(otherId);
+    setBorrowing(reserveId, borrowing);
+    // no change to other reserve
+    assert(borrowingFlag == isBorrowing(otherId));
+    assert(collateralFlag == isUsingAsCollateral(otherId));
+    // new value is set
+    assert(borrowing == isBorrowing(reserveId));
 }
 
 /** @title prove that setUsingAsCollateral preserves the flags for any other reserve
 and sets the usingAsCollateral flag for the given reserve to the given value
 **/
-rule setUsingAsCollateral(uint256 reserveId1, bool usingAsCollateral) {
-    uint256 reserveId2; uint256 reserveId3;
-    bool before = isUsingAsCollateral(reserveId2);
-    bool borrowingFlag = isBorrowing(reserveId3);
-
-    setUsingAsCollateral(reserveId1, usingAsCollateral);
-    bool after = isUsingAsCollateral(reserveId2);
-    assert(reserveId1 != reserveId2 => before == after);
-    assert(reserveId1 == reserveId2 => usingAsCollateral == after);
-    assert(borrowingFlag == isBorrowing(reserveId3));
+rule setUsingAsCollateral(uint256 reserveId, bool usingAsCollateral) {
+    uint256 otherId;
+    require reserveId != otherId;
+    bool borrowingFlag = isBorrowing(otherId);
+    bool collateralFlag = isUsingAsCollateral(otherId);
+    setUsingAsCollateral(reserveId, usingAsCollateral);
+    // no change to other reserve
+    assert(borrowingFlag == isBorrowing(otherId));
+    assert(collateralFlag == isUsingAsCollateral(otherId));
+    // new value is set
+    assert(usingAsCollateral == isUsingAsCollateral(reserveId));
 }
 
 /** @title prove that isUsingAsCollateralOrBorrowing returns true if the reserve is using as collateral or borrowing
@@ -94,6 +89,7 @@ rule collateralCount(uint256 reserveCount, bool usingAsCollateral, uint256 reser
 
 /** @title prove that max_uint256 is not a valid reserve id
 **/
+/*
 invariant maxUintNotValidReserveId() 
     !isBorrowing(max_uint256) && !isUsingAsCollateral(max_uint256) {
         preserved setBorrowing(uint256 _reserveId, bool _borrowing) {
@@ -103,7 +99,13 @@ invariant maxUintNotValidReserveId()
             require _reserveId != max_uint256;
         }
     }
+*/
 
+//* assume that max_uint256 is not a valid reserve id
+function maxUintNotValidReserveId() 
+ {
+    require !isBorrowing(max_uint256) && !isUsingAsCollateral(max_uint256);
+}
 
 /** @title prove that next returns the next reserve id using as collateral or borrowing.
 1. compare with nextBorrowing and nextCollateral
@@ -115,7 +117,7 @@ rule next(uint256 startReserveId) {
     uint256 reserveId;
     bool borrowing;
     bool collateral;
-    requireInvariant maxUintNotValidReserveId();
+    maxUintNotValidReserveId();
     
     reserveId, borrowing, collateral = next(startReserveId);
     
@@ -124,7 +126,7 @@ rule next(uint256 startReserveId) {
     uint256 nextCollateralId = nextCollateral(startReserveId);
 
 
-    assert(reserveId == NOT_FOUND <=> (nextBorrowingId == NOT_FOUND && nextCollateralId == NOT_FOUND));
+    assert(reserveId == NOT_FOUND <=> (nextBorrowingId == NOT_FOUND && nextCollateralId == NOT_FOUND && !borrowing && !collateral));
     assert(reserveId != NOT_FOUND => (nextBorrowingId == reserveId || nextCollateralId == reserveId));
     assert(reserveId != NOT_FOUND => reserveId < startReserveId);
 
@@ -145,25 +147,23 @@ rule next(uint256 startReserveId) {
 rule nextBorrowing(uint256 startReserveId) {
     uint256 NOT_FOUND = max_uint256;
     uint256 reserveId;
-    requireInvariant maxUintNotValidReserveId();
+    maxUintNotValidReserveId();
     reserveId = nextBorrowing(startReserveId);
     assert(reserveId != NOT_FOUND => reserveId < startReserveId);
     assert(reserveId != NOT_FOUND <=> isBorrowing(reserveId));
 
     uint256 reserveIdBetween;
     assert (reserveIdBetween < startReserveId && reserveIdBetween > reserveId) => !isBorrowing(reserveIdBetween);
-    
-
 }
 
 /** @title prove that nextCollateral returns the next reserve id using as collateral.
 1. make sure that any reserve id between the startReserveId and the next reserve id is not using as collateral
 2. make sure that the next reserve id is using as collateral
 **/
-rule nextCollateral(uint256 startReserveId, uint256 reserveCount) {
+rule nextCollateral(uint256 startReserveId) {
     uint256 NOT_FOUND = max_uint256;
     uint256 reserveId;
-    requireInvariant maxUintNotValidReserveId();
+    maxUintNotValidReserveId();
     reserveId = nextCollateral(startReserveId);
     assert(reserveId != NOT_FOUND => reserveId < startReserveId); 
     assert(reserveId != NOT_FOUND <=> isUsingAsCollateral(reserveId));

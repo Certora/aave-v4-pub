@@ -61,9 +61,16 @@ rule accrueSupplyRate(uint256 assetId){
     mathint assets_e2 = getAddedAssets(e2, assetId);
     mathint shares_e2 = hub._assets[assetId].addedShares;
 
+    //verify the assumption that total added assets is always greater than or equal to added shares
+    assert assets_e2 >= shares_e2;
+
     assert (assets_e2 + oneM) * (shares_e1 + oneM) >= (assets_e1 + oneM) * (shares_e2 + oneM); 
     satisfy (assets_e2 + oneM) * (shares_e1 + oneM) > (assets_e1 + oneM) * (shares_e2 + oneM); 
 
+}
+
+rule checkAssumptionTotalAddedShares(uint256 assetId, env e){
+    assert hub._assets[assetId].addedShares == getAddedShares(e, assetId);
 }
 
 function setup_three_timestamps(uint256 assetId, env e1, env e2, env e3){
@@ -78,6 +85,7 @@ function setup_three_timestamps(uint256 assetId, env e1, env e2, env e3){
     require  symbolicDrawnIndex(e2.block.timestamp) <= symbolicDrawnIndex(e3.block.timestamp);
     //based on requireInvariant baseDebtIndexMin(assetId); 
     require  symbolicDrawnIndex(e1.block.timestamp) >= RAY;
+    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 }
 
 
@@ -87,25 +95,28 @@ rule shareRate_withoutAccrue_time_monotonic(uint256 assetId){
     require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = getAddedAssets(e1, assetId);
+    // proved in checkAssumptionTotalAddedShares that totalAddedShares is always the hub._assets[assetId].addedShares 
     mathint shares = hub._assets[assetId].addedShares;
     //requireInvariant totalAssetsVsShares(assetId,e);
     require assets_e1 >= shares;
 
     // get the fee shares and asset at e2
     mathint assets_e2 = getAddedAssets(e2, assetId);
-    assert shares == hub._assets[assetId].addedShares;
     
     // get the fee shares and asset at e2;
     mathint assets_e3 = getAddedAssets(e3, assetId);
 
-    assert assets_e3  >= assets_e2  ;
+    /* we prove this: 
+    assert (assets_e3 + oneM) * (shares + oneM) >= (assets_e2 + oneM) * (shares + oneM); 
+    by proving: 
+    */
+    assert assets_e3 >= assets_e2;
 }
 
 
 rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewRemoveByShares(e1, assetId, shares);
     mathint assets_e2 = previewRemoveByShares(e2, assetId, shares);
@@ -118,7 +129,6 @@ rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256
 rule previewAddByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewAddByAssets(e1, assetId, assets);
     mathint shares_e2 = previewAddByAssets(e2, assetId, assets);
@@ -131,7 +141,7 @@ rule previewAddByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 as
 rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
+
 
     mathint assets_e1 = previewAddByShares(e1, assetId, shares);
     mathint assets_e2 = previewAddByShares(e2, assetId, shares);
@@ -144,7 +154,6 @@ rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 sh
 rule previewRemoveByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewRemoveByAssets(e1, assetId, assets);
     mathint shares_e2 = previewRemoveByAssets(e2, assetId, assets);
@@ -158,7 +167,6 @@ rule previewRemoveByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256
 rule previewDrawByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewDrawByAssets(e1, assetId, assets);
     mathint shares_e2 = previewDrawByAssets(e2, assetId, assets);
@@ -171,7 +179,6 @@ rule previewDrawByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 a
 rule previewDrawByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewDrawByShares(e1, assetId, shares);
     mathint assets_e2 = previewDrawByShares(e2, assetId, shares);
@@ -185,7 +192,6 @@ rule previewDrawByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 s
 rule previewRestoreByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 assets){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint shares_e1 = previewRestoreByAssets(e1, assetId, assets);
     mathint shares_e2 = previewRestoreByAssets(e2, assetId, assets);
@@ -198,7 +204,6 @@ rule previewRestoreByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint25
 rule previewRestoreByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares){
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
-    require hub._assets[assetId].liquidityFee <= PERCENTAGE_FACTOR, "invariant liquidityFee_upper_bound";
 
     mathint assets_e1 = previewRestoreByShares(e1, assetId, shares);
     mathint assets_e2 = previewRestoreByShares(e2, assetId, shares);

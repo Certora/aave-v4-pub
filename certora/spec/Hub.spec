@@ -92,7 +92,7 @@ filtered {
     requireAllInvariants(assetId, e);
     // use ghost to avoid repeating complex computation
     mathint assetsBefore = addedAssetsBefore;
-    mathint sharesBefore = supplyShareBefore;
+    mathint sharesBefore = addedSharesBefore;
 
     require hub._assets[assetId].lastUpdateTimestamp == e.block.timestamp; 
 
@@ -107,41 +107,39 @@ filtered {
 
 
 
-/** @title No change to a spoke's asset or debt. assume accrue has been called.  
+/** @title No bad behavior change to a spoke's asset or debt. assume accrue has been called.  
 **/
 rule noChangeToOtherSpoke(address spoke, uint256 assetId, address otherSpoke, method f) 
     filtered { f -> !f.isView }
     {
     env e;
-    env eOther;
-    require e.block.timestamp == eOther.block.timestamp; 
-    require otherSpoke != spoke && eOther.msg.sender == otherSpoke; 
-    address feeReceiver = hub._assets[assetId].feeReceiver;
-
+    
+    require otherSpoke != spoke && e.msg.sender == spoke; 
     require hub._assets[assetId].lastUpdateTimestamp == e.block.timestamp; 
     requireAllInvariants(assetId, e);
     
-    uint256 cumulativeDebt_  = getSpokeTotalOwed(e, assetId, spoke); 
+    
+    uint256 shares_ = getSpokeAddedShares(e, assetId, otherSpoke);
+    uint256 deficit_ = getSpokeDeficitRay(e, assetId, otherSpoke);
+    uint256 drawnShares_  = getSpokeDrawnShares(e, assetId, otherSpoke);
+    uint256 premiumShares_; int256 premiumOffset_;
+    premiumShares_, premiumOffset_ = getSpokePremiumData(e, assetId, otherSpoke);
 
-    uint256 shares_ = getSpokeAddedShares(e, assetId, spoke);
-    uint256 assets = getSpokeAddedAssets(e, assetId, spoke);
 
-    address toOnTransfer;
-    uint256 x;
-    if (f.selector == sig:transferShares(uint256,uint256,address).selector) {
-        transferShares(eOther, assetId, x, toOnTransfer);
-    }
-
-    else {
-        calldataarg args; 
-        f(eOther,args);
-    }
-    assert cumulativeDebt_ >= getSpokeTotalOwed(e, assetId, spoke);  
-    assert (spoke != feeReceiver && spoke != toOnTransfer) => shares_ == getSpokeAddedShares(e, assetId, spoke);
-    // cases where shares can increase 
-    assert (spoke == feeReceiver || spoke == toOnTransfer) => shares_ <= getSpokeAddedShares(e, assetId, spoke);
-    // asset can increase due to other's operations 
-    assert assets <= getSpokeAddedAssets(e, assetId, spoke); 
+    calldataarg args; 
+    f(e,args);
+    
+    // shares can increase on feeReceiver or transferShares function 
+    assert shares_ <= getSpokeAddedShares(e, assetId, otherSpoke);
+    // deficit can decrease on eliminateDeficit function
+    assert deficit_ >= getSpokeDeficitRay(e, assetId, otherSpoke);
+    // drawn shares can not change
+    assert drawnShares_ == getSpokeDrawnShares(e, assetId, otherSpoke);
+    // premium shares and offset can not change
+    uint256 premiumSharesAfter; int256 premiumOffsetAfter;
+    premiumSharesAfter, premiumOffsetAfter = getSpokePremiumData(e, assetId, otherSpoke);
+    assert premiumShares_ == premiumSharesAfter;
+    assert premiumOffset_ == premiumOffsetAfter;
 } 
 
 
@@ -165,16 +163,16 @@ rule accrueWasCalled(uint256 assetId, method f) filtered { f-> !f.isView &&
 }
 
 /**
-@title lastUpdateTimestamp is never in the future
+@title lastUpdateTimestamp is never updated if accrue was called already 
 */
-rule lastUpdateTimestamp_notInFuture(uint256 assetId, method f) filtered { f-> !f.isView} {
+rule lastUpdateTimestamp_notChanged(uint256 assetId, method f) filtered { f-> !f.isView} {
     env e;
-    require hub._assets[assetId].lastUpdateTimestamp <= e.block.timestamp;
+    uint before = hub._assets[assetId].lastUpdateTimestamp;
     
     calldataarg args;
     f(e,args);
 
-    assert hub._assets[assetId].lastUpdateTimestamp <= e.block.timestamp;
+    assert hub._assets[assetId].lastUpdateTimestamp == before || ( hub._assets[assetId].lastUpdateTimestamp == e.block.timestamp && f.selector == sig:addAsset(address,uint8,address,address,bytes).selector);
 
 
 }
