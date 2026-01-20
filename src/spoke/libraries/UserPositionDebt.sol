@@ -20,12 +20,6 @@ library UserPositionDebt {
   using WadRayMath for *;
   using MathUtils for *;
 
-  struct DebtComponents {
-    uint256 drawnShares;
-    uint256 premiumDebtRay;
-    uint256 drawnIndex;
-  }
-
   /// @notice Applies the premium delta to the user position.
   /// @param userPosition The user position.
   /// @param premiumDelta The premium delta to apply.
@@ -65,7 +59,6 @@ library UserPositionDebt {
     uint256 newPremiumShares = (userPosition.drawnShares - drawnSharesTaken).percentMulUp(
       riskPremium
     );
-    require(newPremiumShares * drawnIndex <= uint256(type(int256).max)); // Certora fix for unsafe casting
     int256 newPremiumOffsetRay = (newPremiumShares * drawnIndex).signedSub(
       premiumDebtRay - restoredPremiumRay
     );
@@ -121,21 +114,6 @@ library UserPositionDebt {
   ) internal view returns (uint256, uint256) {
     uint256 premiumDebtRay = _calculatePremiumRay(userPosition, drawnIndex);
     return (userPosition.drawnShares.rayMulUp(drawnIndex), premiumDebtRay);
-  }
-
-  /// @return The debt components of the user position.
-  function getDebtComponents(
-    ISpoke.UserPosition storage userPosition,
-    IHubBase hub,
-    uint256 assetId
-  ) internal view returns (DebtComponents memory) {
-    uint256 drawnIndex = hub.getAssetDrawnIndex(assetId);
-    return
-      DebtComponents({
-        drawnShares: userPosition.drawnShares,
-        premiumDebtRay: _calculatePremiumRay(userPosition, drawnIndex),
-        drawnIndex: drawnIndex
-      });
   }
 
   /// @dev Calculates the premium debt of a user position with full precision.
