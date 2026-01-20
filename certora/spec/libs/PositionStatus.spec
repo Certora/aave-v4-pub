@@ -77,7 +77,6 @@ rule isUsingAsCollateralOrBorrowing(uint256 reserveId) {
 /** @title prove that collateralCount returns the correct number of reserves due to setUsingAsCollateral
 **/
 rule collateralCount(uint256 reserveCount, bool usingAsCollateral, uint256 reserveId) {
-    /// todo prove in spoke that reserveCount is correct
     require reserveId < reserveCount;
     uint256 countBefore = collateralCount(reserveCount);
     bool flagBefore = isUsingAsCollateral(reserveId);
@@ -86,20 +85,6 @@ rule collateralCount(uint256 reserveCount, bool usingAsCollateral, uint256 reser
     assert(usingAsCollateral == flagBefore => countBefore == countAfter);
     assert(usingAsCollateral != flagBefore => countAfter == countBefore + (usingAsCollateral ? 1 : -1));
 }
-
-/** @title prove that max_uint256 is not a valid reserve id
-**/
-/*
-invariant maxUintNotValidReserveId() 
-    !isBorrowing(max_uint256) && !isUsingAsCollateral(max_uint256) {
-        preserved setBorrowing(uint256 _reserveId, bool _borrowing) {
-            require _reserveId != max_uint256;
-        }
-        preserved setUsingAsCollateral(uint256 _reserveId, bool _usingAsCollateral) {
-            require _reserveId != max_uint256;
-        }
-    }
-*/
 
 //* assume that max_uint256 is not a valid reserve id
 function maxUintNotValidReserveId() 

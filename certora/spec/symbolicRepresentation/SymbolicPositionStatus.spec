@@ -122,7 +122,6 @@ function nextCollateralCVL(uint256 startReserveId) returns (uint256) {
     return result;
 }
 
-//todo - prove  that collateralCount is correct
 function collateralCountCVL(uint256 ignore) returns (uint256) {
     return reserveCountGhost;
 }

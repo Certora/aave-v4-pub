@@ -15,7 +15,7 @@ import "./symbolicRepresentation/SymbolicHub.spec";
 
 // Definition moved from SpokeBase.spec as it depends on getAssetDrawnIndexCVL from SymbolicHub.spec
 definition premiumDebtCVL(address user, uint256 reserveId, env e) returns mathint =
-(spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e))- spoke._userPositions[user][reserveId].premiumOffsetRay;
+(spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e)) - spoke._userPositions[user][reserveId].premiumOffsetRay;
 
 /* Assumption: userGhost is the user who is interacting with the Spoke contract.
 It is used to track the user who is interacting with the Spoke contract.
@@ -152,18 +152,14 @@ rule updateUserRiskPremium_preservesPremiumDebt(uint256 reserveId, address user)
         premiumDebtAfter == premiumDebtBefore;
 }
 
-/**
-Verify that borrowing flag is set if and only if there are drawn shares
-**/
+/** @title Verify that borrowing flag is set if and only if there are drawn shares **/
 invariant isBorrowingIFFdrawnShares()  
 forall uint256 reserveId. forall address user.
     spoke._userPositions[user][reserveId].drawnShares > 0  <=>  isBorrowing[user][reserveId]
 filtered {f -> !outOfScopeFunctions(f)}
 
 
-/**
-Verify that if there are no drawn shares, then there are no premium shares or offset
-**/
+/** @title Verify that if there are no drawn shares, then there are no premium shares or offset **/
 invariant drawnSharesZero(address user, uint256 reserveId) 
     spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0) 
     filtered {f -> !outOfScopeFunctions(f)}
@@ -174,6 +170,7 @@ invariant drawnSharesZero(address user, uint256 reserveId)
     }
     
 
+/** @title Validates reserve state for all users and reserves **/
 invariant validReserveId()
 forall uint256 reserveId. forall address user.
     // exists
@@ -192,6 +189,7 @@ forall uint256 reserveId. forall address user.
     filtered {f -> !outOfScopeFunctions(f)}
 
 
+/** @title Validates reserve state for all users for a single reserveId **/
 invariant validReserveId_single(uint256 reserveId)
     // exists
     (reserveId < spoke._reserveCount  => 
@@ -210,6 +208,7 @@ invariant validReserveId_single(uint256 reserveId)
     filtered {f -> !outOfScopeFunctions(f)}
     
 
+/** @title Validates reserve state for a single user and reserveId **/
 invariant validReserveId_singleUser(uint256 reserveId, address user)
     // exists
     (reserveId < spoke._reserveCount  => 
@@ -229,9 +228,7 @@ invariant validReserveId_singleUser(uint256 reserveId, address user)
 
 
 
-/**
-Verify that the assetId and hub are unique to a reserveId
-**/
+/** @title Verify that the assetId and hub are unique to a reserveId **/
 invariant uniqueAssetIdPerReserveId(uint256 reserveId, uint256 otherReserveId) 
     (reserveId < spoke._reserveCount && otherReserveId < spoke._reserveCount  && reserveId != otherReserveId ) => (spoke._reserves[reserveId].assetId != spoke._reserves[otherReserveId].assetId  || spoke._reserves[reserveId].hub != spoke._reserves[otherReserveId].hub)
     filtered {f -> !outOfScopeFunctions(f)}
@@ -246,9 +243,7 @@ invariant uniqueAssetIdPerReserveId(uint256 reserveId, uint256 otherReserveId)
     }
 
 
-/**
-Verify that the realized premium ray is consistent with the premium shares and drawn index
-**/
+/** @title Verify that the realized premium ray is consistent with the premium shares and drawn index **/
 invariant realizedPremiumRayConsistency(uint256 reserveId, address user, env e)
     spoke._userPositions[user][reserveId].premiumOffsetRay <= spoke._userPositions[user][reserveId].premiumShares * getAssetDrawnIndexCVL(spoke._reserves[reserveId].assetId, e)
     filtered {f -> !outOfScopeFunctions(f)}
@@ -261,9 +256,7 @@ invariant realizedPremiumRayConsistency(uint256 reserveId, address user, env e)
     }
 }
 
-/** 
-Verify that the drawn shares are equal to the premium shares multiplied by the risk premium
-**/
+/** @title Verify that the drawn shares are equal to the premium shares multiplied by the risk premium **/
 invariant drawnSharesRiskEQPremiumShares( address user, uint256 reserveId)
     ((spoke._userPositions[user][reserveId].drawnShares * spoke._positionStatus[user].riskPremium + PERCENTAGE_FACTOR -1) / PERCENTAGE_FACTOR == spoke._userPositions[user][reserveId].premiumShares )
     filtered {f -> !outOfScopeFunctions(f)}
@@ -277,9 +270,8 @@ invariant drawnSharesRiskEQPremiumShares( address user, uint256 reserveId)
         require nextBorrowingCVL(spoke._reserveCount) == reserveId;
     }
 }
-/**
-Verify that if there is no collateral, then there is no debt
-**/
+
+/** @title Verify that if there is no collateral, then there is no debt **/
 rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f) 
     filtered {f -> !outOfScopeFunctions(f) && !f.isView } {
     env e;
@@ -314,10 +306,7 @@ rule noCollateralNoDebt(uint256 reserveIdUsed, address user, method f)
     assert afterUserAccountData.totalCollateralValue == 0 => afterUserAccountData.totalDebtValue == 0;
 }
 
-/**
-Verify that the collateral factor is not zero once set to a non-zero value
-**/
-
+/** @title Verify that the collateral factor is not zero once set to a non-zero value **/
 rule collateralFactorNotZero(uint256 reserveId, address user, method f) filtered {f -> !outOfScopeFunctions(f) && !f.isView} {
     env e;
     setup();
@@ -334,9 +323,7 @@ rule collateralFactorNotZero(uint256 reserveId, address user, method f) filtered
 
 
 
-/**
-Verify that the user debt value is deterministic
-**/
+/** @title Verify that the user debt value is deterministic **/
 rule deterministicUserDebtValue(uint256 reserveId, address user) {
     env e;
     setup();
@@ -349,9 +336,7 @@ rule deterministicUserDebtValue(uint256 reserveId, address user) {
     assert premiumDebt == premiumDebt2;
 }
 
-/**
-Verify that the dynamic config key is consistent with the reserve dynamic config key
-**/
+/** @title Verify that the dynamic config key is consistent with the reserve dynamic config key **/
 invariant dynamicConfigKeyConsistency(uint256 reserveId, address user)
     spoke._userPositions[user][reserveId].dynamicConfigKey <= spoke._reserves[reserveId].dynamicConfigKey
     filtered {f -> !outOfScopeFunctions(f)}

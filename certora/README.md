@@ -374,6 +374,20 @@ For more information on the Certora Prover and CVL specification language, see:
   - `bonusAtThreshold` - Bonus equals PERCENTAGE_FACTOR at liquidation threshold
   - `zeroBonusFactorMeansNoMinBonus` - Zero bonus factor means no minimum bonus
 
+### `libs/DebtToTarget.spec`
+**Debt to target health factor calculation verification.**
+
+- **Config:** `certora/conf/libs/DebtToTarget.conf`
+- **Harness:** `SpokeHarness.sol`
+- **Purpose:** Verifies `_calculateDebtToTargetHealthFactor` function properties
+
+### `libs/ProcessUserAccountData.spec`
+**User account data processing verification.**
+
+- **Config:** `certora/conf/libs/ProcessUserAccountData.conf`
+- **Harness:** `SpokeHarness.sol`
+- **Purpose:** Verifies `_processUserAccountData` function properties
+
 ### `libs/LibBit.spec`
 **Bit manipulation library verification.**
 
@@ -520,6 +534,11 @@ Wraps LiquidationLogic library for verification:
 - Exposes `_calculateLiquidationAmounts()` for liquidation amount verification
 - Exposes `calculateLiquidationBonus()` for bonus calculation verification
 
+### `SpokeHarness.sol`
+Wraps Spoke functions for verification:
+- Exposes `_calculateDebtToTargetHealthFactor()` for debt calculation verification
+- Exposes `_processUserAccountData()` for account data processing verification
+
 ---
 
 ## Tips for Running Verification
@@ -542,5 +561,143 @@ Wraps LiquidationLogic library for verification:
    certoraRun certora/conf/Hub.conf --split_rules noChangeToOtherSpoke supplyExchangeRateIsMonotonic
    ```
 
-5. **View Results:** Check the Certora Prover dashboard at https://prover.certora.com
+5. View Results: Check the Certora Prover dashboard at https://prover.certora.com
+
+---
+
+## Verification Rules and Invariants
+
+| Spec File | Rule Name | link |
+| :--- | :--- | :--- |
+| `Spoke.spec` | `increaseCollateralOrReduceDebtFunctions` | |
+| `Spoke.spec` | `paused_noChange` | |
+| `Spoke.spec` | `frozen_onlyReduceDebtAndCollateral` | |
+| `Spoke.spec` | `updateUserRiskPremium_preservesPremiumDebt` | |
+| `Spoke.spec` | `isBorrowingIFFdrawnShares` | |
+| `Spoke.spec` | `drawnSharesZero` | |
+| `Spoke.spec` | `validReserveId` | |
+| `Spoke.spec` | `validReserveId_single` | |
+| `Spoke.spec` | `validReserveId_singleUser` | |
+| `Spoke.spec` | `uniqueAssetIdPerReserveId` | |
+| `Spoke.spec` | `realizedPremiumRayConsistency` | |
+| `Spoke.spec` | `drawnSharesRiskEQPremiumShares` | |
+| `Spoke.spec` | `noCollateralNoDebt` | |
+| `Spoke.spec` | `collateralFactorNotZero` | |
+| `Spoke.spec` | `deterministicUserDebtValue` | |
+| `Spoke.spec` | `dynamicConfigKeyConsistency` | |
+| `liquidation.spec` | `sanityCheck` | |
+| `liquidation.spec` | `borrowingFlagSetIFFdrawnShares_liquidationCall` | |
+| `liquidation.spec` | `healthyAccountCannotBeLiquidated` | |
+| `liquidation.spec` | `paused_noLiquidation` | |
+| `liquidation.spec` | `monotonicityOfDebtDecrease_liquidationCall` | |
+| `liquidation.spec` | `noChangeToOtherAccounts_liquidationCall` | |
+| `SpokeHealthFactor.spec` | `belowThresholdReverting` | |
+| `SpokeHealthFactor.spec` | `userHealthBelowThresholdCanOnlyIncreaseHealthFactor` | https://prover.certora.com/output/40726/c1df8f0ddf564a41b019f9ec3f2d7d4b/ |
+| `SpokeHealthFactor.spec` | `userHealthBelowThresholdCanOnlyIncreaseHealthFactor setUsingAsCollateral` | https://prover.certora.com/output/40726/6d0934d9310244bbb6f98859448f3ae7 |
+| `SpokeHealthFactor.spec` | `userHealthAboveThreshold` | |
+| `SpokeIntegrity.spec` | `nothingForZero_supply` | |
+| `SpokeIntegrity.spec` | `nothingForZero_withdraw` | |
+| `SpokeIntegrity.spec` | `nothingForZero_borrow` | |
+| `SpokeIntegrity.spec` | `nothingForZero_repay` | |
+| `SpokeIntegrity.spec` | `supply_noChangeToOther` | |
+| `SpokeIntegrity.spec` | `withdraw_noChangeToOther` | |
+| `SpokeIntegrity.spec` | `borrow_noChangeToOther` | |
+| `SpokeIntegrity.spec` | `repay_noChangeToOther` | |
+| `SpokeIntegrity.spec` | `onlyPositionManagerCanChange` | |
+| `SpokeUserIntegrity.spec` | `userIntegrity` | |
+| `SpokeHubIntegrity.spec` | `userDrawnShareConsistency` | |
+| `SpokeHubIntegrity.spec` | `userPremiumShareConsistency` | |
+| `SpokeHubIntegrity.spec` | `userPremiumOffsetConsistency` | |
+| `SpokeHubIntegrity.spec` | `userSuppliedShareConsistency` | |
+| `SpokeHubIntegrity.spec` | `repay_debtDecrease` | |
+| `SpokeHubIntegrity.spec` | `repay_zeroDebt` | |
+| `Hub.spec` | `supplyExchangeRateIsMonotonic` | |
+| `Hub.spec` | `noChangeToOtherSpoke` | |
+| `Hub.spec` | `accrueWasCalled` | |
+| `Hub.spec` | `lastUpdateTimestamp_notChanged` | |
+| `Hub.spec` | `totalAssetsCompareToSuppliedAmount_virtual` | |
+| `Hub.spec` | `totalAssetsCompareToSuppliedAmount_noVirtual` | |
+| `HubValidState.spec` | `validAssetId` | |
+| `HubValidState.spec` | `sumOfSpokeSupplyShares` | |
+| `HubValidState.spec` | `sumOfSpokeDrawnShares` | |
+| `HubValidState.spec` | `sumOfSpokePremiumDrawnShares` | |
+| `HubValidState.spec` | `sumOfSpokePremiumOffset` | |
+| `HubValidState.spec` | `sumOfSpokeDeficit` | |
+| `HubValidState.spec` | `drawnIndexMin` | |
+| `HubValidState.spec` | `liquidityFee_upper_bound` | |
+| `HubValidState.spec` | `premiumOffset_Integrity` | |
+| `HubValidState.spec` | `totalAssetsVsShares` | |
+| `HubValidState.spec` | `totalAssetsVsShares_eliminateDeficit` | |
+| `HubIntegrityRules.spec` | `assetToSpokesIntegrity` | |
+| `HubIntegrityRules.spec` | `underlyingAssetsIntegrity` | |
+| `HubIntegrityRules.spec` | `nothingForZero_add` | |
+| `HubIntegrityRules.spec` | `nothingForZero_remove` | |
+| `HubIntegrityRules.spec` | `nothingForZero_draw` | |
+| `HubIntegrityRules.spec` | `nothingForZero_restore` | |
+| `HubIntegrityRules.spec` | `nothingForZero_reportDeficit` | |
+| `HubIntegrityRules.spec` | `nothingForZero_eliminateDeficit` | |
+| `HubIntegrityRules.spec` | `nothing_for_zero_sweep` | |
+| `HubIntegrityRules.spec` | `nothing_for_zero_reclaim` | |
+| `HubIntegrityRules.spec` | `add_integrity` | |
+| `HubIntegrityRules.spec` | `remove_integrity` | |
+| `HubIntegrityRules.spec` | `draw_integrity` | |
+| `HubIntegrityRules.spec` | `restore_integrity` | |
+| `HubIntegrityRules.spec` | `reportDeficit_integrity` | |
+| `HubIntegrityRules.spec` | `eliminateDeficit_integrity` | |
+| `HubIntegrityRules.spec` | `sweep_integrity` | |
+| `HubIntegrityRules.spec` | `reclaim_integrity` | |
+| `HubIntegrityRules.spec` | `reportDeficitSameAsPreviewRestoreByAssets` | |
+| `HubIntegrityRules.spec` | `validSpokeOnly` | |
+| `HubIntegrityRules.spec` | `frontRunOnRefreshPremium` | |
+| `HubAdditivity.spec` | `addAdditivity` | |
+| `HubAdditivity.spec` | `removeAdditivity` | |
+| `HubAdditivity.spec` | `drawAdditivity` | |
+| `HubAdditivity.spec` | `restoreAdditivity` | |
+| `HubAdditivity.spec` | `reportDeficitAdditivity` | |
+| `HubAdditivity.spec` | `eliminateDeficitAdditivity` | |
+| `HubAccrueIntegrity.spec` | `runningTwiceIsEquivalentToOne` | |
+| `HubAccrueIntegrity.spec` | `baseDebtIndexMin_accrue` | |
+| `HubAccrueIntegrity.spec` | `lastUpdateTimestamp_notInFuture` | |
+| `HubAccrueIntegrity.spec` | `noChangeToOtherFields_accrue` | |
+| `HubAccrueIntegrity.spec` | `baseDebtIndex_increasing` | |
+| `HubAccrueIntegrity.spec` | `premiumOffset_Integrity_accrue` | |
+| `HubAccrueIntegrity.spec` | `viewFunctionsIntegrity` | |
+| `HubAccrueIntegrity.spec` | `viewFunctionsRevertIntegrity` | |
+| `HubAccrueSupplyRate.spec` | `accrueSupplyRate` | |
+| `HubAccrueUnrealizedFee.spec` | `checkAssumptionTotalAddedShares` | |
+| `HubAccrueUnrealizedFee.spec` | `shareRate_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewRemoveByShares_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewAddByAssets_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewAddByShares_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewRemoveByAssets_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewDrawByAssets_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewDrawByShares_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewRestoreByAssets_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `previewRestoreByShares_withoutAccrue_time_monotonic` | |
+| `HubAccrueUnrealizedFee.spec` | `feeAmountIncrease` | |
+| `HubAccrueUnrealizedFee.spec` | `maxgetUnrealizedFees` | |
+| `HubAccrueUnrealizedFee.spec` | `lastUpdateTimestampSameAsBlockTimestamp` | |
+| `LiquidationRepotDeficit.spec` | `moreThanOneCollateral_noReportDeficit` | https://prover.certora.com/output/40726/521bb07a52de477ba0fa27cfc787fc2f/|
+| `LiquidationUserIntegrity.spec` | `onlyOneUserDebtChanges_liquidationCall` | |
+| `libs/LiquidationLogic.spec` | `sanityCheck` | |
+| `libs/LiquidationLogic.spec` | `debtToLiquidateNotExceedBalance` | |
+| `libs/LiquidationLogic.spec` | `debtToLiquidateNotExceedDebtToCover` | |
+| `libs/LiquidationLogic.spec` | `collateralToLiquidatorNotExceedTotal` | |
+| `libs/LiquidationLogic.spec` | `collateralToLiquidateValueLessThanDebtToLiquidate_assets` | |
+| `libs/LiquidationLogic.spec` | `collateralToLiquidateValueLessThanDebtToLiquidate_shares` | |
+| `libs/LiquidationLogic.spec` | `collateralToLiquidateValueLessThanDebtToLiquidate_fullRayDebt` | |
+| `libs/LiquidationLogic_Bonus.spec` | `sanityCheck` | |
+| `libs/LiquidationLogic_Bonus.spec` | `maxBonusWhenLowHealthFactor` | |
+| `libs/LiquidationLogic_Bonus.spec` | `bonusIsAtLeastNoBonus` | |
+| `libs/LiquidationLogic_Bonus.spec` | `bonusDoesNotExceedMax` | |
+| `libs/LiquidationLogic_Bonus.spec` | `monotonicityOfBonus` | |
+| `libs/LiquidationLogic_Bonus.spec` | `bonusAtThreshold` | |
+| `libs/LiquidationLogic_Bonus.spec` | `zeroBonusFactorMeansNoMinBonus` | |
+| `libs/DebtToTarget.spec` | `sanityCheck` | |
+| `libs/DebtToTarget.spec` | `zeroDebtIfHealthFactorAtTarget` | |
+| `libs/DebtToTarget.spec` | `monotonicityOfHealthFactor` | |
+| `libs/DebtToTarget.spec` | `monotonicityOfTargetHealthFactor` | |
+| `libs/ProcessUserAccountData.spec` | `sanityCheck` | |
+| `libs/ProcessUserAccountData.spec` | `zeroDataIfNoPositions` | |
+| `libs/ProcessUserAccountData.spec` | `collateralValueIntegrity` | |
 

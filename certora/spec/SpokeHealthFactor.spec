@@ -4,6 +4,8 @@ Verify that the health factor is above threshold after any operation.
 Symbolic represent the total collateral value and total debt value.
 The health factor is calculated as the total collateral value divided by the total debt value.
 
+
+Notice that setUsingAsCollateral TODO - add comment explain here more details about how it works and how it is used in the spec
 To run this spec, run:
 certoraRun certora/conf/SpokeHealthCheck_take2.conf
 **/
@@ -30,7 +32,7 @@ methods {
     
     function _.next(ISpoke.PositionStatus storage positionStatus, uint256 startReserveId) internal => NONDET;
     
-    function _.nextBorrowing(ISpoke.PositionStatus storage positionStatus, uint256 startReserveId) internal => NONDET;
+    function _.nextBorrowing(ISpoke.PositionStatus storage positionStatus, uint256 startReserveId) internal => nextBorrowingCVL(startReserveId) expect uint256;
     
     function _.nextCollateral(ISpoke.PositionStatus storage positionStatus, uint256 startReserveId) internal => NONDET;
 
@@ -56,9 +58,15 @@ ghost address currentUser;
 ghost uint256 debtReserveId_1;
 ghost uint256 debtReserveId_2;
 ghost uint256 debtReserveId_3;
+ghost uint256 collateralReserveId_1;
+ghost uint256 collateralReserveId_2;
+ghost uint256 collateralReserveId_3;
 
 definition knownDebtReserveIds(uint256 reserveId) returns bool = 
     reserveId == debtReserveId_1 || reserveId == debtReserveId_2 || reserveId == debtReserveId_3;
+
+definition knownCollateralReserveIds(uint256 reserveId) returns bool = 
+    reserveId == collateralReserveId_1 || reserveId == collateralReserveId_2 || reserveId == collateralReserveId_3;
 
 ghost mapping(uint256 /*reserveId*/ => bool /*usingAsCollateral*/) isUsingAsCollateral {
     init_state axiom forall uint256 reserveId. !isUsingAsCollateral[reserveId];
@@ -78,6 +86,7 @@ hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId]
 }
 
 hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares uint120 newValue (uint120 oldValue) {
+    require knownCollateralReserveIds(reserveId);
     if (isUsingAsCollateral[reserveId]) {
         uint256 assetId = spoke._reserves[reserveId].assetId;
         totalCollateralValueGhost = totalCollateralValueGhost + (
@@ -86,6 +95,7 @@ hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].suppliedShar
 }              
 
 hook Sload uint120 value _userPositions[KEY address user][KEY uint256 reserveId].suppliedShares {
+    require knownCollateralReserveIds(reserveId);
     if (isUsingAsCollateral[reserveId]) {
         uint256 assetId = spoke._reserves[reserveId].assetId;
         require totalCollateralValueGhost >= 
@@ -120,7 +130,8 @@ hook Sload int200 value _userPositions[KEY address user][KEY uint256 reserveId].
 
 function setUsingAsCollateralCVL_updateTotals(uint256 reserveId, bool usingAsCollateral) {
     uint256 assetId = spoke._reserves[reserveId].assetId;
-    mathint currValue = spoke._userPositions[currentUser][reserveId].suppliedShares * shareToAssetsRatio[assetId][currentTime]  * symbolicPrice(reserveId, currentTime);
+    require knownCollateralReserveIds(reserveId);
+    mathint currValue = collateralIDValue(reserveId);
     if (isUsingAsCollateral[reserveId] && !usingAsCollateral) {
         totalCollateralValueGhost = totalCollateralValueGhost - currValue;
     } else if (!isUsingAsCollateral[reserveId] && usingAsCollateral) {
@@ -133,20 +144,67 @@ function isUsingAsCollateralCVL(uint256 reserveId) returns (bool) {
     return isUsingAsCollateral[reserveId];
 }
 
+ghost mathint activeCollateralCountGhost;
 function processUserAccountDataCVL(address user, bool refreshConfig) returns (ISpoke.UserAccountData) {
     ISpoke.UserAccountData userAccountData;
     require userAccountData.healthFactor == ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost];
+    activeCollateralCountGhost = 0;
+    if (collateralIDValue(collateralReserveId_1) > 0) {
+        activeCollateralCountGhost = activeCollateralCountGhost + 1;
+    }
+    if (collateralIDValue(collateralReserveId_2) > 0) {
+        activeCollateralCountGhost = activeCollateralCountGhost + 1;
+    }
+    if (collateralIDValue(collateralReserveId_3) > 0) {
+        activeCollateralCountGhost = activeCollateralCountGhost + 1;
+    }
+    require userAccountData.activeCollateralCount  == activeCollateralCountGhost;
     return userAccountData;
 }
 
-rule userHealthAboveThreshold(method f)  filtered { f -> !f.isView && !outOfScopeFunctions(f)} {
-    uint256 HEALTH_FACTOR_LIQUIDATION_THRESHOLD = 10 ^ 18; 
-    
+function collateralIDValue(uint256 reserveId) returns (mathint) {
+    uint256 assetId = spoke._reserves[reserveId].assetId;
+    return spoke._userPositions[currentUser][reserveId].suppliedShares * shareToAssetsRatio[assetId][currentTime]  * symbolicPrice(reserveId, currentTime);
+}
+
+function nextBorrowingCVL(uint256 startReserveId) returns (uint256) {
+    if (startReserveId > collateralReserveId_1 && collateralIDValue(collateralReserveId_1) > 0 ){
+        return collateralReserveId_1;
+    }
+    if (startReserveId > collateralReserveId_2 && collateralIDValue(collateralReserveId_2) > 0 ){
+        return collateralReserveId_2;
+    }
+    if (startReserveId > collateralReserveId_3 && collateralIDValue(collateralReserveId_3) > 0 ){
+        return collateralReserveId_3;
+    }
+    return max_uint256;
+}
+
+definition HEALTH_FACTOR_LIQUIDATION_THRESHOLD() returns uint256 = 10 ^ 18;
+
+//definition of function that should revert if the health factor is below the threshold
+definition belowThresholdRevertingFunctions(method f) returns bool = 
+    f.selector == sig:updateUserDynamicConfig(address).selector ||
+    f.selector == sig:borrow(uint256, uint256, address).selector;
+
+rule belowThresholdReverting(method f) filtered { f -> belowThresholdRevertingFunctions(f)} {
+    env e;
+    calldataarg args;
+    setup();
+    require currentTime == e.block.timestamp;
+    require totalCollateralValueGhost >= 0 && totalDebtValueGhost >= 0;
+    require ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] < HEALTH_FACTOR_LIQUIDATION_THRESHOLD();
+    f@withrevert(e, args);
+    assert lastReverted;
+}
+
+rule userHealthBelowThresholdCanOnlyIncreaseHealthFactor(method f)  filtered { f -> !f.isView && !outOfScopeFunctions(f) && !belowThresholdRevertingFunctions(f)} {
     env e;
     setup();
     require currentTime == e.block.timestamp;
     require totalCollateralValueGhost >= 0 && totalDebtValueGhost >= 0;
-    require ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD;
+    uint256 healthFactorBefore = ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost];
+    require ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] < HEALTH_FACTOR_LIQUIDATION_THRESHOLD();
     
     calldataarg args;
     if (f.selector == sig:setUsingAsCollateral(uint256, bool, address).selector) {
@@ -157,8 +215,30 @@ rule userHealthAboveThreshold(method f)  filtered { f -> !f.isView && !outOfScop
     f(e, args);
     
     require totalCollateralValueGhost >= 0 && totalDebtValueGhost >= 0;
-    assert ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD;
+    assert healthFactorBefore <= ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost];
 }
+
+
+rule userHealthAboveThreshold(method f)  filtered { f -> !f.isView && !outOfScopeFunctions(f)} {
+    env e;
+    setup();
+    require currentTime == e.block.timestamp;
+    require totalCollateralValueGhost >= 0 && totalDebtValueGhost >= 0;
+    require ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD();
+    
+    calldataarg args;
+    if (f.selector == sig:setUsingAsCollateral(uint256, bool, address).selector) {
+        uint256 reserveId;
+        bool usingAsCollateral;
+        setUsingAsCollateral(e, reserveId, usingAsCollateral, currentUser);
+    }
+    f(e, args);
+    
+    require totalCollateralValueGhost >= 0 && totalDebtValueGhost >= 0;
+    assert ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD();
+}
+
+
 
 function validReserveId_singleUser(uint256 reserveId)  {
     require
@@ -198,9 +278,6 @@ function setup() {
     setUpForOne(debtReserveId_2);
     setUpForOne(debtReserveId_3);
 
-/*    forall uint256 i. (nextBorrowingCVL(i) == debtReserveId_3 ||
-    nextCollateralCVL(i) == debtReserveId_2 ||
-    nextBorrowingCVL(i) == debtReserveId_1 ||
-    nextBorrowingCVL(i) == max_uint256);
-*/
 }
+
+

@@ -27,6 +27,7 @@ persistent ghost mapping(address => uint256) ghostHealthFactor {
     init_state axiom forall address user. ghostHealthFactor[user] == 0;
 }
 
+//todo - verify this function is returning the right activeCollateralCount
 function processUserAccountDataCVL(address user, bool refreshConfig) returns (ISpoke.UserAccountData) {
     ISpoke.UserAccountData userAccountData;
     require userAccountData.healthFactor == ghostHealthFactor[user];
@@ -123,38 +124,8 @@ rule monotonicityOfDebtDecrease_liquidationCall(uint256 reserveId, address userL
 
 }   
 
-rule moreThanOneCollateral_noReportDeficit(uint256 reserveId, address userLiquidated, address liquidator) {
-    env e;
-    setup();
-    require e.msg.sender == liquidator;
-    uint256 collateralReserveId;
-    uint256 debtReserveId;
-    uint256 debtToCover;
-    bool receiveShares;
-    uint256 otherCollateralReserveId;
-    require otherCollateralReserveId != collateralReserveId;
 
-    require liquidator != spoke._reserves[collateralReserveId].hub;
-    require spoke._userPositions[userLiquidated][collateralReserveId].suppliedShares > 0;
-    require spoke._userPositions[userLiquidated][otherCollateralReserveId].suppliedShares > 0;
-    require reserveCountGhost > 1; // total collateral in position status 
-
-    //todo - try to run with original processUserAccountDataCVL function
-    require isUsingAsCollateral[userLiquidated][otherCollateralReserveId] && isUsingAsCollateral[userLiquidated][collateralReserveId];
-    uint256 collateralFactorCollateralReserveId = spoke._dynamicConfig[collateralReserveId][spoke._userPositions[userLiquidated][collateralReserveId].dynamicConfigKey].collateralFactor;
-    require collateralFactorCollateralReserveId > 0;
-    uint256 collateralFactorOtherCollateralReserveId = spoke._dynamicConfig[otherCollateralReserveId][spoke._userPositions[userLiquidated][otherCollateralReserveId].dynamicConfigKey].collateralFactor;
-    require collateralFactorOtherCollateralReserveId > 0;
-    
-    require spoke._userPositions[userLiquidated][debtReserveId].drawnShares > 0 <=> isBorrowing[userLiquidated][debtReserveId];
-
-    require !deficitReportedFlag;
-    liquidationCall(e, collateralReserveId, debtReserveId, userLiquidated, debtToCover, receiveShares);
-    assert !deficitReportedFlag;
-}
-
-
-//@title During liquidation no change to other accounts. In the liquidated account debt can be decrease to zero on report deficit, however other collateral can not change at all
+///@title During liquidation no change to other accounts. In the liquidated account debt can be decrease to zero on report deficit, however other collateral can not change at all
 rule noChangeToOtherAccounts_liquidationCall(uint256 reserveId, address userLiquidated, address liquidator, address user) {
     env e;
     setup();

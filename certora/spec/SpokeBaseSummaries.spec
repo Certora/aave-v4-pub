@@ -57,7 +57,7 @@ function CVL_sort(KeyValueList.List array) {
 
 
 //deterministic non-zero value for each reserveId and timestamp
-// todo - run without this axiom and make a list of properties needing this
+//the non-zero assumption is enforced by the oracle 
 ghost symbolicPrice(uint256 /*reserveId*/, uint256 /*timestamp*/) returns uint256 {
     axiom forall uint256 reserveId. forall uint256 timestamp. symbolicPrice(reserveId,timestamp) > 0;
 }

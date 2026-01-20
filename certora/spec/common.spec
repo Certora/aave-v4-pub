@@ -4,6 +4,9 @@ Common method summaries used in both Hub and Spoke spec files
 
 methods {
 
+    function Math.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) internal returns (uint256) => 
+        mulDivCVL(x,y,denominator,rounding);
+
     function _.mulDivDown(uint256 a, uint256 b, uint256 c) internal => 
         mulDivDownCVL(a,b,c) expect uint256;
     
@@ -62,4 +65,16 @@ persistent ghost address checkedCanCallGhost;
 function checkCanCallCVL(address caller) returns (bool) {
     checkedCanCallGhost = caller;
     return true;
+}
+
+function mulDivCVL(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) returns (uint256) {
+    if (rounding == Math.Rounding.Ceil) {
+        return mulDivUpCVL(x,y,denominator);
+    } else if (rounding == Math.Rounding.Floor) {
+        return mulDivDownCVL(x,y,denominator);
+    }
+    else {
+        assert false;
+        return 0;
+    }
 }

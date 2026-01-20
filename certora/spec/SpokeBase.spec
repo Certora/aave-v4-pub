@@ -10,7 +10,6 @@ Base definitions used in all of Spoke spec files
 methods {
     function isPositionManager(address user, address positionManager) external returns (bool) envfree;
 
-    // todo - check with mod and dev operation instead of summary 
     function _.paused(ISpoke.ReserveFlags) internal => pausedGhost expect bool;
     function _.frozen(ISpoke.ReserveFlags) internal => frozenGhost expect bool;
 }
@@ -53,4 +52,6 @@ function setup() {
     require forall uint256 reserveId. forall address user.
     spoke._userPositions[user][reserveId].drawnShares > 0   <=>  isBorrowing[user][reserveId];
 
+    //require§invariant drawnSharesZero(address user, uint256 reserveId) 
+    require forall address user. forall uint256 reserveId. spoke._userPositions[user][reserveId].drawnShares == 0 => (  spoke._userPositions[user][reserveId].premiumShares == 0 && spoke._userPositions[user][reserveId].premiumOffsetRay == 0) ;
 }

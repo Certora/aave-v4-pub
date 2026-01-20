@@ -53,6 +53,24 @@ rule lastUpdateTimestamp_notInFuture(){
 }
 
 
+/// @title no change to other fields when accrue is called
+rule noChangeToOtherFields_accrue(uint256 assetId) {
+    env e;
+    storage beforeStorage = lastStorage;
+    uint256 beforeTimestamp = hub._assets[assetId].lastUpdateTimestamp;
+    uint256 beforeIndex = hub._assets[assetId].drawnIndex;
+    uint256 beforeRealizedFees = hub._assets[assetId].realizedFees;
+
+    accrueInterest(e,assetId);
+    havoc hub._assets[assetId].lastUpdateTimestamp;
+    havoc hub._assets[assetId].drawnIndex;
+    havoc hub._assets[assetId].realizedFees;
+    require hub._assets[assetId].lastUpdateTimestamp == beforeTimestamp;
+    require hub._assets[assetId].drawnIndex == beforeIndex;
+    require hub._assets[assetId].realizedFees == beforeRealizedFees;
+    assert lastStorage == beforeStorage;
+}
+
 definition emptyAsset(uint256 assetId) returns bool =
     hub._assets[assetId].addedShares == 0 &&
         hub._assets[assetId].liquidity == 0 &&
@@ -150,8 +168,6 @@ rule viewFunctionsIntegrity(uint256 assetId, method f) filtered { f-> f.isView &
 {
     env e;
     calldataarg args; 
-    storage init = lastStorage;
-    
 
     // lastUpdateTimestamp can not be in the future, prove... 
     require hub._assets[assetId].lastUpdateTimestamp <= e.block.timestamp; 
@@ -159,17 +175,56 @@ rule viewFunctionsIntegrity(uint256 assetId, method f) filtered { f-> f.isView &
     //requireInvariant baseDebtIndexMin(assetId); 
     require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
 
-
-    accrueInterest(e, assetId);
     mathint ret_withAccrue = callViewFunction(f, e, args);
 
-    // get back to init
-    getAsset(e, assetId) at init;
-    //todo - add revert check 
+    // accrue before calling the view function
+    accrueInterest(e, assetId);
+
     mathint ret_withoutAccrue = callViewFunction(f, e, args);
-    
     assert ret_withAccrue == ret_withoutAccrue;
 }
+
+
+rule viewFunctionsRevertIntegrity(uint256 assetId, method f) filtered { f-> f.isView &&
+                            
+                                f.selector != sig:authority().selector &&
+                                f.selector != sig:isConsumingScheduledOp().selector &&
+                                f.selector != sig:isSpokeListed(uint256,address).selector &&
+                                // returns a struct 
+                                f.selector != sig:getAsset(uint256).selector &&
+                                f.selector != sig:getAssetConfig(uint256).selector &&
+                                f.selector != sig:getSpoke(uint256,address).selector &&
+                                f.selector != sig:getSpokeConfig(uint256,address).selector &&
+                                f.selector != sig:getSpokeAddress(uint256,uint256).selector &&
+                                // harness functions
+                                f.selector != sig:toSharesDown(uint256,uint256,uint256).selector &&
+                                f.selector != sig:toAssetsDown(uint256,uint256,uint256).selector &&
+                                f.selector != sig:toSharesUp(uint256,uint256,uint256).selector &&
+                                f.selector != sig:toAssetsUp(uint256,uint256,uint256).selector &&
+                                f.selector != sig:getUnrealizedFees(uint256).selector &&
+                                f.selector != sig:MAX_ALLOWED_UNDERLYING_DECIMALS().selector &&
+                                f.selector != sig:MAX_ALLOWED_SPOKE_CAP().selector &&
+                                f.selector != sig:MAX_RISK_PREMIUM_THRESHOLD().selector &&
+                                f.selector != sig:getAssetUnderlyingAndDecimals(uint256).selector 
+                                }
+{
+    env e;
+    calldataarg args; 
+
+    // lastUpdateTimestamp can not be in the future, prove... 
+    require hub._assets[assetId].lastUpdateTimestamp <= e.block.timestamp; 
+    
+    //requireInvariant baseDebtIndexMin(assetId); 
+    require hub._assets[assetId].drawnIndex == 0 || hub._assets[assetId].drawnIndex >= RAY;
+
+    f(e, args);
+
+    // accrue before calling the view function
+    accrueInterest(e, assetId);
+    f@withrevert(e, args);
+    assert !lastReverted;
+}
+
 
 //* helper function for calling view functions and fetching the return value as mathint */
 function callViewFunction(method f, env e, calldataarg args) returns mathint {
@@ -178,9 +233,6 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
     }
     else if (f.selector == sig:getSpokeCount(uint256).selector) {
         return getSpokeCount(e, args);
-    }
-    else if (f.selector == sig:getSpoke(uint256,address).selector) {
-        // skip or handle as needed (returns struct)
     }
     else if (f.selector == sig:previewAddByAssets(uint256,uint256).selector) {
         return previewAddByAssets(e, args);
@@ -262,13 +314,14 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
         return MIN_ALLOWED_UNDERLYING_DECIMALS(e, args);
     }
     else if (f.selector == sig:getAssetDeficitRay(uint256).selector) {
-        return getAssetDeficitRay(e, args);
+        return getAssetDeficitRay(e, args);     
     }
     else if (f.selector == sig:getAssetLiquidity(uint256).selector) {
-        return getAssetLiquidity(e, args);
+        return getAssetLiquidity@withrevert(e, args); 
+    
     }
     else if (f.selector == sig:getAssetSwept(uint256).selector) {
-        return getAssetSwept(e, args);
+        return getAssetSwept(e, args);  
     }
     else if (f.selector == sig:getSpokeDeficitRay(uint256,address).selector) {
         return getSpokeDeficitRay(e, args);
@@ -284,9 +337,5 @@ function callViewFunction(method f, env e, calldataarg args) returns mathint {
         assert false, "unknown view function";
         return 0;
     }
-    return 0;
-    
 
 }
-
-/// @title no change to other fields when accrue is called

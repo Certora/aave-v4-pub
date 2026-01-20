@@ -5,6 +5,8 @@ methods {
 
     function _.previewAddByAssets(uint256 assetId, uint256 assets) external with (env e) => previewAddByAssetsCVL(assetId, assets, e) expect uint256;
 
+    function _.previewAddByShares(uint256 assetId, uint256 shares) external with (env e) => previewAddBySharesCVL(assetId, shares, e) expect uint256;
+
     function _.previewRemoveByAssets(uint256 assetId, uint256 assets) external with (env e) => previewRemoveByAssetsCVL(assetId, assets, e) expect uint256;
 
     function _.previewDrawByShares(uint256 assetId, uint256 shares) external with (env e) => previewDrawBySharesCVL(assetId, shares, e) expect uint256;

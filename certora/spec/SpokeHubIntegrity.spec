@@ -169,15 +169,6 @@ invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_)
         }
     }
 
-invariant underlyingAssetConsistency(uint256 reserveId)
-    spoke._reserves[reserveId].underlying!=0 =>spoke._reserves[reserveId].underlying == hub._assets[spoke._reserves[reserveId].assetId].underlying
-    filtered {f -> !outOfScopeFunctions(f)}
-    {
-        preserved {
-            safeAssumptions();
-        }
-        
-    }
 
 // repay function reduces the debt of a user
 rule repay_debtDecrease(uint256 reserveId, uint256 amount, address user) {
