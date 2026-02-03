@@ -18,6 +18,15 @@ contract MathWrapper {
     return Math.mulDiv(x, y, denominator);
   }
 
+  function mulDiv(
+    uint256 x,
+    uint256 y,
+    uint256 denominator,
+    Math.Rounding rounding
+  ) external pure returns (uint256 result) {
+    return Math.mulDiv(x, y, denominator, rounding);
+  }
+
   function mulDivDown(
     uint256 x,
     uint256 y,

@@ -66,15 +66,3 @@ function checkCanCallCVL(address caller) returns (bool) {
     checkedCanCallGhost = caller;
     return true;
 }
-
-function mulDivCVL(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) returns (uint256) {
-    if (rounding == Math.Rounding.Ceil) {
-        return mulDivUpCVL(x,y,denominator);
-    } else if (rounding == Math.Rounding.Floor) {
-        return mulDivDownCVL(x,y,denominator);
-    }
-    else {
-        assert false;
-        return 0;
-    }
-}

@@ -1,13 +1,23 @@
 /**
- * @title LiquidationLogic_Bonus Spec
- * @notice Specification for LiquidationLogic.calculateLiquidationBonus
+ * @title LiquidationLogic Bonus Specification
+ * @notice Formal verification of LiquidationLogic.calculateLiquidationBonus.
+ * @dev This spec verifies how the liquidation bonus is calculated based on the user's health factor.
  * 
- * The function calculates liquidation bonus based on health factor:
- * - If healthFactor <= healthFactorForMaxBonus: returns maxLiquidationBonus
- * - Otherwise: linear interpolation between minLiquidationBonus and maxLiquidationBonus
+ * The function logic:
+ * - If healthFactor <= healthFactorForMaxBonus: returns maxLiquidationBonus.
+ * - Otherwise: linear interpolation between minLiquidationBonus and maxLiquidationBonus.
+ * 
+ * Verification Scope:
+ * - Functional correctness: Bonus matches expected values at boundaries (max bonus and threshold).
+ * - Monotonicity: Higher health factor should result in a lower or equal bonus.
+ * - Bounds: Bonus should never exceed the maximum or fall below the base (100%).
  */
 
 using LiquidationLogicHarness as harness;
+
+////////////////////////////////////////////////////////////////////////////
+//                                METHODS                                 //
+////////////////////////////////////////////////////////////////////////////
 
 methods {
     function calculateLiquidationBonus(
@@ -18,18 +28,28 @@ methods {
     ) external returns (uint256) envfree;
 }
 
-// Constants
+////////////////////////////////////////////////////////////////////////////
+//                               DEFINITIONS                               //
+////////////////////////////////////////////////////////////////////////////
+
 definition PERCENTAGE_FACTOR() returns uint256 = 10000; // 100% in BPS
 definition HEALTH_FACTOR_LIQUIDATION_THRESHOLD() returns uint256 = 10^18;
 
-/// @title Sanity check - function can succeed
+////////////////////////////////////////////////////////////////////////////
+//                                 RULES                                  //
+////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @title Sanity Check
+ * @notice Verifies that calculateLiquidationBonus can succeed for at least one set of parameters.
+ */
 rule sanityCheck() {
     uint256 healthFactorForMaxBonus;
     uint256 liquidationBonusFactor;
     uint256 healthFactor;
     uint256 maxLiquidationBonus;
     
-    uint256 result = harness.calculateLiquidationBonus(
+    harness.calculateLiquidationBonus(
         healthFactorForMaxBonus,
         liquidationBonusFactor,
         healthFactor,
@@ -39,7 +59,10 @@ rule sanityCheck() {
     satisfy true;
 }
 
-/// @title When healthFactor <= healthFactorForMaxBonus, returns maxLiquidationBonus
+/**
+ * @title Max Bonus at Low Health Factor
+ * @notice Verifies that when the health factor is below or equal to the max bonus threshold, the maximum bonus is returned.
+ */
 rule maxBonusWhenLowHealthFactor() {
     uint256 healthFactorForMaxBonus;
     uint256 liquidationBonusFactor;
@@ -55,10 +78,13 @@ rule maxBonusWhenLowHealthFactor() {
         maxLiquidationBonus
     );
     
-    assert result == maxLiquidationBonus;
+    assert result == maxLiquidationBonus, "Should return max bonus for low health factor";
 }
 
-/// @title Result is always >= PERCENTAGE_FACTOR (no negative bonus)
+/**
+ * @title Minimum Bonus Bound
+ * @notice Ensures that the calculated bonus is never less than 100% (PERCENTAGE_FACTOR).
+ */
 rule bonusIsAtLeastNoBonus() {
     uint256 healthFactorForMaxBonus;
     uint256 liquidationBonusFactor;
@@ -77,10 +103,13 @@ rule bonusIsAtLeastNoBonus() {
         maxLiquidationBonus
     );
     
-    assert result >= PERCENTAGE_FACTOR();
+    assert result >= PERCENTAGE_FACTOR(), "Bonus cannot be negative (less than 100%)";
 }
 
-/// @title Result is always <= maxLiquidationBonus
+/**
+ * @title Maximum Bonus Bound
+ * @notice Ensures that the calculated bonus never exceeds the specified maximum liquidation bonus.
+ */
 rule bonusDoesNotExceedMax() {
     uint256 healthFactorForMaxBonus;
     uint256 liquidationBonusFactor;
@@ -94,10 +123,13 @@ rule bonusDoesNotExceedMax() {
         maxLiquidationBonus
     );
     
-    assert result <= maxLiquidationBonus;
+    assert result <= maxLiquidationBonus, "Bonus exceeds specified maximum";
 }
 
-/// @title Monotonicity: higher healthFactor results in lower or equal bonus
+/**
+ * @title Bonus Monotonicity
+ * @notice Verifies that as the health factor increases, the liquidation bonus decreases or stays the same.
+ */
 rule monotonicityOfBonus() {
     uint256 healthFactorForMaxBonus;
     uint256 liquidationBonusFactor;
@@ -123,10 +155,13 @@ rule monotonicityOfBonus() {
         maxLiquidationBonus
     );
     
-    assert result1 >= result2;
+    assert result1 >= result2, "Bonus should not increase with higher health factor";
 }
 
-/// @title At threshold, bonus equals minLiquidationBonus
+/**
+ * @title Bonus at Liquidation Threshold
+ * @notice Verifies that at the liquidation threshold (1.0), the bonus equals the minimum calculated bonus.
+ */
 rule bonusAtThreshold() {
     uint256 healthFactorForMaxBonus;
     uint256 liquidationBonusFactor;
@@ -146,10 +181,13 @@ rule bonusAtThreshold() {
     // (maxLiquidationBonus - PERCENTAGE_FACTOR).percentMulDown(liquidationBonusFactor) + PERCENTAGE_FACTOR
     mathint expectedMin = ((maxLiquidationBonus - PERCENTAGE_FACTOR()) * liquidationBonusFactor / PERCENTAGE_FACTOR()) + PERCENTAGE_FACTOR();
     
-    assert result == assert_uint256(expectedMin);
+    assert result == assert_uint256(expectedMin), "Bonus at threshold mismatch";
 }
 
-/// @title Zero bonus factor means min bonus equals PERCENTAGE_FACTOR
+/**
+ * @title Zero Bonus Factor Impact
+ * @notice Verifies that if the bonus factor is zero, the minimum bonus at the threshold is exactly 100% (no bonus).
+ */
 rule zeroBonusFactorMeansNoMinBonus() {
     uint256 healthFactorForMaxBonus;
     uint256 healthFactor;
@@ -166,6 +204,5 @@ rule zeroBonusFactorMeansNoMinBonus() {
         maxLiquidationBonus
     );
     
-    assert result == PERCENTAGE_FACTOR();
+    assert result == PERCENTAGE_FACTOR(), "Zero bonus factor should result in 100% bonus at threshold";
 }
-
