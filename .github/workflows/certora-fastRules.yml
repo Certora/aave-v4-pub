@@ -5,7 +5,7 @@ env:
     certora/conf/libs/LibBit.conf
     certora/conf/libs/LiquidationLogic_Bonus.conf
     certora/conf/libs/LiquidationLogic_debtToLiquidate.conf
-    certora/conf/libs/LiquidationLogic.conf --rules collateralToLiquidateValueLessThanDebtToLiquidate 
+    certora/conf/libs/LiquidationLogic.conf --rule collateralToLiquidateValueLessThanDebtToLiquidate 
     certora/conf/libs/LiquidationLogic.conf --exclude_rule collateralToLiquidateValueLessThanDebtToLiquidate collateralToLiquidateValueLessThanDebtToLiquidate_general
     certora/conf/libs/Math.conf
     certora/conf/libs/Premium.conf
@@ -27,7 +27,7 @@ env:
     certora/conf/LiquidationReportDeficit.conf
     certora/conf/LiquidationUserIntegrity.conf
     certora/conf/Spoke.conf --rule drawnSharesZero 
-    certora/conf/Spoke.conf --exclude_rule noCollateralNoDebt drawnSharesZero increaseCollateralOrReduceDebtFunctions
+    certora/conf/Spoke.conf --exclude_rule drawnSharesZero noCollateralNoDebt increaseCollateralOrReduceDebtFunctions
     certora/conf/Spoke_noCollateralNoDebt.conf
     certora/conf/SpokeHealthCheck.conf
     certora/conf/SpokeHealthFactor.conf
@@ -41,7 +41,6 @@ env:
     ######### rules that are too long/flaky to run in ci, run manually #########
     certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
     certora/conf/Hub.conf --rule noChangeToOtherSpoke
-    certora/conf/Spoke.conf --rule noCollateralNoDebt
     certora/conf/HubAdditivity.conf --rule drawAdditivity
     certora/conf/HubAdditivity.conf --rule restoreAdditivity
     certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
