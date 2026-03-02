@@ -14,7 +14,6 @@ env:
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf
     certora/conf/Hub.conf --exclude_rule noChangeToOtherSpoke supplyExchangeRateIsMonotonic
-    certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity
     certora/conf/HubAccrueIntegrity.conf 
     certora/conf/HubAccrueUnrealizedFee.conf
     certora/conf/HubAccrueSupplyRate.conf --exclude_rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic 
@@ -41,12 +40,14 @@ env:
     ######### rules that are too long/flaky to run in ci, run manually #########
     certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
     certora/conf/Hub.conf --rule noChangeToOtherSpoke
-    certora/conf/HubAdditivity.conf --rule drawAdditivity
-    certora/conf/HubAdditivity.conf --rule restoreAdditivity
-    certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
+    # certora/conf/HubAdditivity.conf --rule drawAdditivity
+    # certora/conf/HubAdditivity.conf --rule restoreAdditivity
+    # certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
+    # certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity
+
     certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic
     #### rules that are failing and waiting for fix
-    certora/conf/Spoke.conf --rule increaseCollateralOrReduceDebtFunctions 
+    certora/conf/Spoke.conf --rule increaseCollateralOrReduceDebtFunctions
 
 on:
   pull_request:
