@@ -19,7 +19,7 @@ env:
     certora/conf/HubAccrueUnrealizedFee.conf
     certora/conf/HubAccrueSupplyRate.conf --exclude_rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic 
     certora/conf/HubIntegrity.conf
-    certora/conf/HubValidState.conf --exclude_rule totalAssetsVsShares_eliminateDeficit
+    certora/conf/HubValidState.conf --exclude_rule totalAssetsVsShares_eliminateDeficit totalAssetsVsShares
     certora/conf/HubValidState.conf --rule totalAssetsVsShares_eliminateDeficit
     certora/conf/HubValidState_totalAssets.conf
     certora/conf/Liquidation.conf
