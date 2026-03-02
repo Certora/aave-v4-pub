@@ -92,7 +92,7 @@ rule liquidation_reportsDeficit(uint256 reserveId, address userLiquidated, addre
     mathint collateralID1ValueBefore = collateralIDValue(collateralReserveId_1);
     mathint collateralID2ValueBefore = collateralIDValue(collateralReserveId_2);
     mathint collateralID3ValueBefore = collateralIDValue(collateralReserveId_3);
-    require totalCollateralValueGhost == collateralID1ValueBefore + collateralID2ValueBefore + collateralID3ValueBefore;
+
     require totalDebtValueGhost == debtValueReserveId(debtReserveId_1) + debtValueReserveId(debtReserveId_2) + debtValueReserveId(debtReserveId_3);
 
     liquidationCall(e, collateralReserveId_1, debtReserveId, userLiquidated, debtToCover, receiveShares);

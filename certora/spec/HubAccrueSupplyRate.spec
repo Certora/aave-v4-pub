@@ -35,7 +35,7 @@ ghost symbolicDrawnIndex(uint256) returns uint256;
  * @notice Given e1, a timestamp last accrue, we prove that the share rate is the same or increasing at e2
  * @dev We prove this for the maximum value of getUnrealizedFees, as proved in HubAccrueIntegrityUnrealizedFee.spec
  *      Therefore, it holds for any smaller value of getUnrealizedFees, as shares_e2 will be smaller
- * @link_property supply exchange rate is increasing
+ * @link_property share rate integrity
  */
 rule accrueSupplyRate(uint256 assetId) {
     env e1; env e2;
@@ -100,7 +100,7 @@ function setup_three_timestamps(uint256 assetId, env e1, env e2, env e3) {
 
 /**
  * @title Share rate is monotonic over time without accrue
- * @link_property supply exchange rate is increasing
+ * @link_property share rate integrity
  */
 rule shareRate_withoutAccrue_time_monotonic(uint256 assetId) {
     env e1; env e2; env e3;
@@ -138,7 +138,8 @@ rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256
     mathint assets_e2 = previewRemoveByShares(e2, assetId, shares);
     mathint assets_e3 = previewRemoveByShares(e3, assetId, shares);
 
-    assert assets_e3 >= assets_e2 && assets_e2 >= assets_e1;
+    assert assets_e3 >= assets_e2;
+    assert assets_e2 >= assets_e1;
 }
 
 
@@ -170,7 +171,8 @@ rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 sh
     mathint assets_e2 = previewAddByShares(e2, assetId, shares);
     mathint assets_e3 = previewAddByShares(e3, assetId, shares);
 
-    assert assets_e3 >= assets_e2 && assets_e2 >= assets_e1;
+    assert assets_e3 >= assets_e2;
+    assert assets_e2 >= assets_e1;
 }
 
 

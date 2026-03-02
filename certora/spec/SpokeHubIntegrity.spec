@@ -80,7 +80,7 @@ hook Sstore _userPositions[KEY address user][KEY uint256 reserveId].premiumOffse
 
 
 /**
- * @title Verify that the user drawn shares are consistent with the Hub drawn Shares
+ * @title Verify that the sum of users' drawn shares for a reserveId are consistent with the Hub drawn Shares for the Spoke
  * @link_property Spoke Hub consistency
  */
 invariant userDrawnShareConsistency(uint256 reserveId) 
@@ -115,7 +115,7 @@ invariant userDrawnShareConsistency(uint256 reserveId)
     }
 
 /**
- * @title Verify that the user premium shares are consistent with the Hub premium shares
+ * @title Verify that the sum of users' premium shares for a reserveId are consistent with the Hub premium shares for the Spoke
  * @link_property Spoke Hub consistency
  */
 invariant userPremiumShareConsistency(uint256 reserveId) 
@@ -139,7 +139,7 @@ invariant userPremiumShareConsistency(uint256 reserveId)
     }
 
 /**
- * @title Verify that the user premium offset is consistent with the Hub premium offset
+ * @title Verify that the sum of users' premium offset for a reserveId are consistent with the Hub premium offset for the Spoke
  * @link_property Spoke Hub consistency
  */
 invariant userPremiumOffsetConsistency(uint256 reserveId) 
@@ -164,7 +164,7 @@ invariant userPremiumOffsetConsistency(uint256 reserveId)
 
 
 /**
- * @title Verify that the user supplied shares are consistent with the Hub supplied shares
+ * @title Verify that the sum of users' supplied shares for a reserveId are consistent with the Hub supplied shares for the Spoke
  * @link_property Spoke Hub consistency
  */
 invariant userSuppliedShareConsistency(uint256 reserveId, uint256 assetId_) 
@@ -218,7 +218,7 @@ rule repay_debtDecrease(uint256 reserveId, uint256 amount, address user) {
 }
 
 /**
- * @title Verify that if the user has no drawn shares, then there are no premium shares or offset. Part of the rule drawnSharesZero proven in spoke.spec for all functions.
+ * @title Verify that if the user has no drawn shares, then there are no premium shares or offset. 
  * @link_property Spoke Hub consistency
  */
 rule repay_zeroDebt(uint256 reserveId, uint256 amount, address user) {

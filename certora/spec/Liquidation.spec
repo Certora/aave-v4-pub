@@ -20,12 +20,20 @@ import "./symbolicRepresentation/SymbolicHub.spec";
 
 methods {
     // based on spec LiquidationLogic_Bonus.spec
-    function LiquidationLogic.calculateLiquidationBonus(uint256, uint256, uint256, uint256) internal returns (uint256) => CalculateLiquidationBonusGhost;
+    function LiquidationLogic.calculateLiquidationBonus(uint256, uint256, uint256, uint256) internal returns (uint256) => NONDET;
 
     function Spoke._processUserAccountData(address user, bool refreshConfig) internal returns (ISpoke.UserAccountData memory) => processUserAccountDataCVL(user, refreshConfig);
 
     // pure function - safe to assume NONDET
     function LiquidationLogic._calculateDebtToTargetHealthFactor(LiquidationLogic.CalculateDebtToTargetHealthFactorParams memory) internal returns (uint256) => NONDET;
+}
+
+////////////////////////////////////////////////////////////////////////////
+//                                 GHOSTS                                 //
+////////////////////////////////////////////////////////////////////////////
+
+persistent ghost mapping(address => uint256) ghostHealthFactor {
+    init_state axiom forall address user. ghostHealthFactor[user] == 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -38,6 +46,8 @@ function processUserAccountDataCVL(address user, bool refreshConfig) returns (IS
     require userAccountData.activeCollateralCount <= reserveCountGhost;
     return userAccountData;
 }
+
+definition HEALTH_FACTOR_LIQUIDATION_THRESHOLD() returns uint256 = 10 ^ 18;
 
 ////////////////////////////////////////////////////////////////////////////
 //                                 RULES                                  //
@@ -57,7 +67,7 @@ rule sanityCheck() {
 /**
  * @title Borrowing flag set if and only if drawn shares exist
  * @notice Assuming one user's borrowing flag is set at a time - proven in LiquidationUserIntegrity.spec
- * @link_property borrowing flag integrity
+ * @link_property liquidation call integrity, borrowing flag integrity
  */
 rule borrowingFlagSetIFFdrawnShares_liquidationCall(uint256 reserveId, address user) {
     env e;
@@ -75,7 +85,7 @@ rule borrowingFlagSetIFFdrawnShares_liquidationCall(uint256 reserveId, address u
 
 /**
  * @title Healthy account cannot be liquidated
- * @link_property health check validity
+ * @link_property liquidation call integrity, health check validity
  */
 rule healthyAccountCannotBeLiquidated(uint256 reserveId, address user) {
     env e;
@@ -85,14 +95,14 @@ rule healthyAccountCannotBeLiquidated(uint256 reserveId, address user) {
     uint256 debtReserveId;
     uint256 debtToCover;
     bool receiveShares;
-    require ghostHealthFactor[user] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD;
+    require ghostHealthFactor[user] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD();
     liquidationCall@withrevert(e, collateralReserveId, debtReserveId, user, debtToCover, receiveShares);
     assert lastReverted;
 }   
 
 /**
  * @title When paused (collateral or debt) then no liquidation
- * @link_property pause behavior
+ * @link_property liquidation call integrity,pause behavior
  */
 rule paused_noLiquidation(uint256 reserveId, address userLiquidated, address liquidator) {
     env e;

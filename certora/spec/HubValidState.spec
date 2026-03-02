@@ -336,7 +336,7 @@ hook Sload uint200 value hub._spokes[KEY uint256 assetId][KEY address spokeId].d
 
 
 
-/** @title integrity of a validAsset 
+/** @title Integrity of a validAsset 
 * @link_property valid state
 **/
 invariant validAssetId(uint256 assetId)
@@ -461,7 +461,7 @@ invariant sumOfSpokeDeficit(uint256 assetId)
     }
 
 /**
- * @title DrawnIndex is greater than or equal to RAY on regular assets
+ * @title DrawnIndex is greater than or equal to RAY on listed assets
  * @link_property valid state
  */
 invariant drawnIndexMin(uint256 assetId)
@@ -481,7 +481,7 @@ invariant liquidityFee_upper_bound(uint256 assetId)
 
 
 /**
- * @title PremiumOffsetRay integrity: premiumOffsetRay must not exceed the premiumShares when converted to assets rounding up
+ * @title PremiumOffsetRay must not exceed the premiumShares on asset and spoke level
  * @link_property valid state
  */
 invariant premiumOffset_Integrity(uint256 assetId, address spokeId)

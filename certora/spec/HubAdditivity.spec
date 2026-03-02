@@ -20,7 +20,7 @@ import "./hub.spec";
 ////////////////////////////////////////////////////////////////////////////
 
 /**
- * @title Prove that adding in two steps is less beneficial to the user than doing it in one step
+ * @title Adding in two steps is less beneficial to the user than doing it in one step
  * @link_property additivity of the operations
  */
 rule addAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address from) {
@@ -43,7 +43,7 @@ rule addAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address fr
 }
 
 /**     
-* @title Prove that removing in two steps is less beneficial to the user than doing it in one step
+* @title Removing in two steps is less beneficial to the user than doing it in one step
 * @link_property additivity of the operations
 **/
 rule removeAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address from) {
@@ -66,7 +66,7 @@ rule removeAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address
 
 
 /**
-* @title Prove that drawing in two steps is less beneficial to the user than doing it in one step
+* @title Drawing in two steps is less beneficial to the user than doing it in one step
 * @link_property additivity of the operations
 **/
 rule drawAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address from) {
@@ -88,7 +88,7 @@ rule drawAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address f
 }
 
 /**
-@title Prove that restoring in two steps is less beneficial to the user than doing it in one step
+@title Restoring in two steps is less beneficial to the user than doing it in one step
 * @link_property additivity of the operations
 **/
 rule restoreAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address from) {
@@ -124,7 +124,7 @@ rule restoreAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, addres
 }
 
 /**
-@title Prove that reporting deficit in two steps is less beneficial to the user than doing it in one step
+@title Reporting deficit in two steps is less beneficial to the user than doing it in one step
 * @link_property additivity of the operations
 **/
 rule reportDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amountY) {

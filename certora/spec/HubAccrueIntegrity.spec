@@ -65,7 +65,7 @@ rule runningTwiceIsEquivalentToOne() {
 /**
  * @title Once baseDebtIndex is set it is at least RAY
  * @notice Proved also in invariant baseDebtIndexMin on all Hub functions
- * @link_property drawnIndex state change
+ * @link_property accrue integrity
  */
 rule baseDebtIndexMin_accrue() {
     env e;
@@ -78,7 +78,7 @@ rule baseDebtIndexMin_accrue() {
 
 /**
  * @title lastUpdateTimestamp is updated to the current block timestamp
- * @link_property lastUpdateTimestamp state change
+ * @link_property accrue integrity
  */
 rule lastUpdateTimestamp_updatedToCurrentBlockTimestamp() {
     env e;
@@ -90,8 +90,8 @@ rule lastUpdateTimestamp_updatedToCurrentBlockTimestamp() {
 
 
 /**
- * @title No change to other fields beside lastUpdateTimestamp, drawnIndex and realizedFees when accrue is called
- * @link_property valid state changes
+ * @title When accrue is called, no change to other fields beside lastUpdateTimestamp, drawnIndex and realizedFees 
+ * @link_property accrue integrity
  */
 rule noChangeToOtherFields_accrue(uint256 assetId) {
     env e;
@@ -113,7 +113,7 @@ rule noChangeToOtherFields_accrue(uint256 assetId) {
 /**
  * @title BaseDebtIndex is increasing on block change when baseRate is at least SECONDS_PER_YEAR and index is set
  * @assumption baseRate is at least SECONDS_PER_YEAR
- * @link_property drawnIndex state change
+ * @link_property accrue integrity
  */
 rule baseDebtIndex_increasing(uint256 assetId) {
     // Proved in invariant baseDebtIndexMin and baseDebtIndexMin_accrue
@@ -137,9 +137,9 @@ rule baseDebtIndex_increasing(uint256 assetId) {
 }
 
 /**
- * @title Prove premiumOffset is always less than or equal to premiumShares * drawnIndex / RAY rounded up
+ * @title Prove premiumOffsetRay is always less than or equal to premiumShares * drawnIndex 
  * @notice This is important to avoid revert on accrue
- * @link_property premiumOffset state change
+ * @link_property accrue integrity
  */
 rule premiumOffset_Integrity_accrue(uint256 assetId, address spokeId) {
     env e;

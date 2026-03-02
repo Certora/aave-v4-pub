@@ -72,29 +72,7 @@ rule nothingForZero_draw(uint256 assetId, uint256 amount, address to) {
            hub._assets[assetId].liquidity < liquidityBefore &&
            amount > 0;
 }
-// does not hold
 
-/**
- * @title Restore operation decreases debt shares and increases liquidity
- * @link_property Hub integrity
- */
-/*rule nothingForZero_restore(uint256 assetId, uint256 drawnAmount, IHubBase.PremiumDelta premiumDelta) {
-    env e;
-    requireAllInvariants(assetId, e);
-    address spoke = e.msg.sender;
-    uint256 drawnSharesBefore = hub._spokes[assetId][spoke].drawnShares;
-    mathint premiumRayBefore = hub._spokes[assetId][spoke].premiumShares * hub._assets[assetId].drawnIndex - hub._spokes[assetId][spoke].premiumOffsetRay;
-    uint256 liquidityBefore = hub._assets[assetId].liquidity;
-
-    restore(e, assetId, drawnAmount, premiumDelta);
-
-    mathint premiumRayAfter = hub._spokes[assetId][spoke].premiumShares * hub._assets[assetId].drawnIndex - hub._spokes[assetId][spoke].premiumOffsetRay;
-    assert (drawnSharesBefore > hub._spokes[assetId][spoke].drawnShares ||
-            premiumRayBefore > premiumRayAfter) &&
-           hub._assets[assetId].liquidity > liquidityBefore;
-}*/
-
-// does not hold
 /**
  * @title Report deficit operation decreases debt shares and increases liquidity
  * @link_property Hub integrity
@@ -120,8 +98,12 @@ rule nothingForZero_eliminateDeficit(uint256 assetId, uint256 amount, address sp
 rule nothing_for_zero_sweep(uint256 assetId, uint256 amount) {
     env e;
     requireAllInvariants(assetId, e);
+    uint256 liquidityBefore = hub._assets[assetId].liquidity;
+    uint256 sweptBefore = hub._assets[assetId].swept;
     sweep(e, assetId, amount);
     assert amount > 0;
+    assert liquidityBefore == hub._assets[assetId].liquidity + amount;
+    assert sweptBefore == hub._assets[assetId].swept - amount;
 }
 
 /**
@@ -131,8 +113,12 @@ rule nothing_for_zero_sweep(uint256 assetId, uint256 amount) {
 rule nothing_for_zero_reclaim(uint256 assetId, uint256 amount) {
     env e;
     requireAllInvariants(assetId, e);
+    uint256 liquidityBefore = hub._assets[assetId].liquidity;
+    uint256 sweptBefore = hub._assets[assetId].swept;
     reclaim(e, assetId, amount);
     assert amount > 0;
+    assert liquidityBefore == hub._assets[assetId].liquidity - amount;
+    assert sweptBefore == hub._assets[assetId].swept + amount;
 }
 
 /**
@@ -356,7 +342,7 @@ rule reclaim_integrity(uint256 assetId, uint256 amount) {
 }
 
 /**
- * @title reportDeficit return same value as previewRestoreByAssetsCVL
+ * @title reportDeficit return same value as previewRestoreByAssets
  * @link_property Hub integrity
  */
 rule reportDeficitSameAsPreviewRestoreByAssets(uint256 assetId, uint256 drawnAmount) {
@@ -371,7 +357,7 @@ rule reportDeficitSameAsPreviewRestoreByAssets(uint256 assetId, uint256 drawnAmo
 }
 
 /**
- * @title only valid spoke can call the function
+ * @title Only valid active spoke can call the function and perform changes the spoke position (except for receiving fee shares)
  * @link_property Hub integrity
  */
 rule validSpokeOnly(uint256 assetId, method f) {
@@ -395,7 +381,7 @@ rule validSpokeOnly(uint256 assetId, method f) {
 }
 
 /**
- * @title frontRunOnRefreshPremium operation increases liquidity, external balance, to balance, swept, spoke added shares, drawn shares, premium shares, premium offset, and deficit ray
+ * @title Order of refreshPremium of two different spoke should not change reverting cases 
  * @link_property Hub integrity
  */
 rule frontRunOnRefreshPremium(uint256 assetId) {

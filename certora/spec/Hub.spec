@@ -88,7 +88,7 @@ methods {
  * @safe_assumptions accrue has been called on the current block timestamp
  * supply exchange rate is monotonic increasing on accrue: proved in HubAccrueSupplyRate.spec 
  * @safe_assumption accrue is called before updating shares or debt: proved in rule accrueWasCalled
- * @link_property supply exchange rate is increasing
+ * @link_property share rate integrity
 
  */
 rule supplyExchangeRateIsMonotonic(env e, method f, calldataarg args)
@@ -115,7 +115,7 @@ filtered {
 }
 
 /**
- * @title No bad behavior change to a spoke's asset or debt
+ * @title Can only increase a spoke's asset or decrease debt
  * @notice Assumes accrue has been called
  * @safe_assumption accrue does not change any values beside asset level : noChangeToOtherFields_accrue 
  * @link_property valid state changes 
