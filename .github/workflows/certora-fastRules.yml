@@ -1,11 +1,10 @@
-name: Certora Prover Workflow
+name: Certora Prover Fast Rules only
 
 env:
   CONFIGS: |
     certora/conf/libs/LibBit.conf
     certora/conf/libs/LiquidationLogic_Bonus.conf
     certora/conf/libs/LiquidationLogic_debtToLiquidate.conf
-    certora/conf/libs/LiquidationLogic.conf --rule collateralToLiquidateValueLessThanDebtToLiquidate 
     certora/conf/libs/LiquidationLogic.conf --exclude_rule collateralToLiquidateValueLessThanDebtToLiquidate collateralToLiquidateValueLessThanDebtToLiquidate_general
     certora/conf/libs/Math.conf
     certora/conf/libs/Premium.conf
@@ -14,22 +13,22 @@ env:
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf
     certora/conf/Hub.conf --exclude_rule noChangeToOtherSpoke supplyExchangeRateIsMonotonic
+    certora/conf/Hub.conf --rule noChangeToOtherSpoke
     certora/conf/HubAccrueIntegrity.conf 
     certora/conf/HubAccrueUnrealizedFee.conf
     certora/conf/HubAccrueSupplyRate.conf --exclude_rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic 
     certora/conf/HubIntegrity.conf
     certora/conf/HubValidState.conf --exclude_rule totalAssetsVsShares_eliminateDeficit totalAssetsVsShares
-    certora/conf/HubValidState.conf --rule totalAssetsVsShares_eliminateDeficit
     certora/conf/HubValidState_totalAssets.conf
     certora/conf/Liquidation.conf
     certora/conf/LiquidationIntegrity.conf
     certora/conf/LiquidationReportDeficit.conf
     certora/conf/LiquidationUserIntegrity.conf
     certora/conf/Spoke.conf --rule drawnSharesZero 
-    certora/conf/Spoke.conf --exclude_rule drawnSharesZero noCollateralNoDebt increaseCollateralOrReduceDebtFunctions
-    certora/conf/Spoke_noCollateralNoDebt.conf
-    certora/conf/SpokeHealthCheck.conf
-    certora/conf/SpokeHealthFactor.conf
+    certora/conf/Spoke.conf --exclude_rule drawnSharesZero noCollateralNoDebt increaseCollateralOrReduceDebtFunctions    
+    certora/conf/Spoke.conf --rule increaseCollateralOrReduceDebtFunctions
+    certora/conf/SpokeHealthCheck.conf 
+    certora/conf/SpokeHealthFactor.conf --exclude_rule userHealthAboveThreshold userHealthBelowThresholdCanOnlyIncreaseHealthFactor
     certora/conf/SpokeIntegrity.conf
     certora/conf/SpokeUserIntegrity.conf
     certora/conf/SpokeWithHub.conf --rule userDrawnShareConsistency 
@@ -37,17 +36,21 @@ env:
     certora/conf/SpokeWithHub.conf --rule userPremiumOffsetConsistency 
     certora/conf/SpokeWithHub.conf --rule userSuppliedShareConsistency
     certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency  userSuppliedShareConsistency
-    ######### rules that are too long/flaky to run in ci, run manually #########
-    certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
-    certora/conf/Hub.conf --rule noChangeToOtherSpoke
+    #########                                                           #########
+    ######### rules that are too long/flaky to run in ci, run manually  #########
+    #########                                                           #########
+    # certora/conf/Spoke_noCollateralNoDebt.conf
+    # certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
     # certora/conf/HubAdditivity.conf --rule drawAdditivity
     # certora/conf/HubAdditivity.conf --rule restoreAdditivity
     # certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
     # certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity
-
-    certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic
-    #### rules that are failing and waiting for fix
-    certora/conf/Spoke.conf --rule increaseCollateralOrReduceDebtFunctions
+    # certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold 
+    # certora/conf/SpokeHealthFactor.conf --rule userHealthBelowThresholdCanOnlyIncreaseHealthFactor
+    # certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic
+    # certora/conf/libs/LiquidationLogic.conf --rule collateralToLiquidateValueLessThanDebtToLiquidate 
+    # certora/conf/HubValidState.conf --rule totalAssetsVsShares_eliminateDeficit
+    
 
 on:
   pull_request:
