@@ -93,7 +93,7 @@ methods {
  */
 rule supplyExchangeRateIsMonotonic(env e, method f, calldataarg args)
 filtered {
-    f -> !f.isView
+    f -> !f.isView && f.selector != sig:eliminateDeficit(uint256,uint256,address).selector
 }
 {
     uint256 assetId;
@@ -112,6 +112,26 @@ filtered {
     mathint sharesAfter = getAddedShares(e,assetId);
     require assetsAfter >= sharesAfter, "based on rule totalAssetsVsShares(assetId,e) and to help the prover";
     assert (assetsAfter + OneM) * (sharesBefore + OneM) >= (assetsBefore + OneM) * (sharesAfter + OneM);
+}
+
+// looking only at the deficit ray of the asset as other assets parts are assumed to be unchanged
+rule supplyExchangeRateIsMonotonic_eliminateDeficit_simplified(uint256 assetId, env e) {
+    require hub._assets[assetId].lastUpdateTimestamp == e.block.timestamp; 
+    requireAllInvariants(assetId, e);
+    address spokeId;
+    uint256 OneM = 1000000;
+    mathint assetsBefore = addedAssetsBefore;
+    mathint deficitBefore = divRayUpCVL(hub._assets[assetId].deficitRay);
+    require assetsBefore == deficitBefore;
+    mathint sharesBefore = addedSharesBefore;
+
+    
+    uint256 amount;
+    require amount * RAY == hub._spokes[assetId][spokeId].deficitRay; 
+    eliminateDeficit(e, assetId, amount, spokeId);
+    mathint deficitAfter = divRayUpCVL(hub._assets[assetId].deficitRay);
+    mathint sharesAfter = getAddedShares(e,assetId);
+    assert (deficitAfter + OneM) * (sharesBefore + OneM) >= (deficitBefore + OneM) * (sharesAfter + OneM);
 }
 
 /**

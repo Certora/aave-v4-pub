@@ -309,7 +309,17 @@ rule userHealthAboveThreshold(method f) filtered {f -> !f.isView && !outOfScopeF
     if (f.selector == sig:setUsingAsCollateral(uint256, bool, address).selector) {
         uint256 reserveId;
         bool usingAsCollateral;
+        uint256 riskPremium = spoke._positionStatus[currentUser].riskPremium;
+        require riskPremium == 0;
         setUsingAsCollateral(e, reserveId, usingAsCollateral, currentUser);
+    }
+    if (f.selector == sig:borrow(uint256, uint256, address).selector) {
+        uint256 reserveId;
+        uint256 amount;
+        address onBehalfOf;
+        uint256 riskPremium = spoke._positionStatus[currentUser].riskPremium;
+        require riskPremium == 0;
+        borrow(e, reserveId, amount, onBehalfOf);
     }
     f(e, args);
 

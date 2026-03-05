@@ -166,9 +166,10 @@ rule reportDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amountY) 
 
 /**
 @title Prove that eliminating deficit in two steps is less beneficial to the user than doing it in one step
+@notice Can only compare deficit ray as supply shares cause timeouts 
 * @link_property additivity of the operations
 **/
-rule eliminateDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address spoke) {
+rule eliminateDeficitAdditivity_DeficitRay(uint256 assetId, uint256 amountX, uint256 amountY, address spoke) {
     env e;
    
     setup_additivity(assetId,e);
@@ -184,8 +185,6 @@ rule eliminateDeficitAdditivity(uint256 assetId, uint256 amountX, uint256 amount
     uint256 addedSharesAfterOneStep = hub._spokes[assetId][e.msg.sender].addedShares;
     uint256 deficitRayAfterOneStep = hub._spokes[assetId][spoke].deficitRay;
     
-    assert addedSharesAfterOneStep >= addedSharesAfterTwoSteps;
-   // satisfy addedSharesAfterOneStep > addedSharesAfterTwoSteps;
     assert deficitRayAfterOneStep == deficitRayAfterTwoSteps;
 }
 

@@ -161,17 +161,34 @@ rule previewAddByAssets_withoutAccrue_time_monotonic(uint256 assetId, uint256 as
 
 /**
  * @title Preview add by shares is monotonic over time without accrue
+ * @notice Due to timeouts Prove that previewAddByShares is monotonic over time without accrue for the case where liquidityFee is 0, PERCENTAGE_FACTOR or PERCENTAGE_FACTOR / 2
  * @link_property view function integrity over time
  */
-rule previewAddByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256 shares) {
+rule previewAddByShares_withoutAccrue_time_monotonic_part1(uint256 assetId, uint256 shares) {
+    env e1; env e2; env e3;
+    setup_three_timestamps(assetId, e1, e2, e3);
+    uint256 liquidityFee = hub._assets[assetId].liquidityFee;
+    require liquidityFee == PERCENTAGE_FACTOR
+    ||  liquidityFee == 0 ||liquidityFee == PERCENTAGE_FACTOR / 2;
+
+    mathint assets_e2 = previewAddByShares(e2, assetId, shares);
+    mathint assets_e3 = previewAddByShares(e3, assetId, shares);
+
+    assert assets_e3 >= assets_e2;
+
+}
+
+/**
+ * @title Preview add by shares is monotonic over time without accrue
+ * @link_property view function integrity over time
+ */
+rule previewAddByShares_withoutAccrue_time_monotonic_part2(uint256 assetId, uint256 shares) {
     env e1; env e2; env e3;
     setup_three_timestamps(assetId, e1, e2, e3);
 
     mathint assets_e1 = previewAddByShares(e1, assetId, shares);
     mathint assets_e2 = previewAddByShares(e2, assetId, shares);
-    mathint assets_e3 = previewAddByShares(e3, assetId, shares);
 
-    assert assets_e3 >= assets_e2;
     assert assets_e2 >= assets_e1;
 }
 
