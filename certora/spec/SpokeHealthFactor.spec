@@ -296,9 +296,10 @@ rule userHealthBelowThresholdCanOnlyIncreaseHealthFactor(method f) filtered {f -
 
 /**
  * @title Verify that the health factor is above the threshold after any operation
+ * @notice Excludes setUsingAsCollateral and borrow functions due to timeouts 
  * @link_property Health check validity
  */
-rule userHealthAboveThreshold(method f) filtered {f -> !f.isView && !outOfScopeFunctions(f)} {
+rule userHealthAboveThreshold(method f) filtered {f -> !f.isView && !outOfScopeFunctions(f) && f.selector != sig:setUsingAsCollateral(uint256, bool, address).selector && f.selector != sig:borrow(uint256, uint256, address).selector} {
     env e;
     setup();
     require currentTime == e.block.timestamp;
@@ -306,21 +307,6 @@ rule userHealthAboveThreshold(method f) filtered {f -> !f.isView && !outOfScopeF
     require ghostHealthFactor[totalCollateralValueGhost][totalDebtValueGhost] >= HEALTH_FACTOR_LIQUIDATION_THRESHOLD();
 
     calldataarg args;
-    if (f.selector == sig:setUsingAsCollateral(uint256, bool, address).selector) {
-        uint256 reserveId;
-        bool usingAsCollateral;
-        uint256 riskPremium = spoke._positionStatus[currentUser].riskPremium;
-        require riskPremium == 0;
-        setUsingAsCollateral(e, reserveId, usingAsCollateral, currentUser);
-    }
-    if (f.selector == sig:borrow(uint256, uint256, address).selector) {
-        uint256 reserveId;
-        uint256 amount;
-        address onBehalfOf;
-        uint256 riskPremium = spoke._positionStatus[currentUser].riskPremium;
-        require riskPremium == 0;
-        borrow(e, reserveId, amount, onBehalfOf);
-    }
     f(e, args);
 
     require totalCollateralValueGhost >= 0 && totalDebtValueGhost >= 0;

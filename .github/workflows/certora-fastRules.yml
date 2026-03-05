@@ -16,7 +16,7 @@ env:
     certora/conf/Hub.conf --rule noChangeToOtherSpoke
     certora/conf/HubAccrueIntegrity.conf 
     certora/conf/HubAccrueUnrealizedFee.conf
-    certora/conf/HubAccrueSupplyRate.conf --exclude_rule previewRemoveByShares_withoutAccrue_time_monotonic  previewAddByShares_withoutAccrue_time_monotonic previewRemoveByAssets_withoutAccrue_time_monotonic
+    certora/conf/HubAccrueSupplyRate.conf --exclude_rule previewRemoveByShares_withoutAccrue_time_monotonic  previewRemoveByAssets_withoutAccrue_time_monotonic
     certora/conf/HubIntegrity.conf
     certora/conf/HubValidState.conf --exclude_rule totalAssetsVsShares_eliminateDeficit totalAssetsVsShares
     certora/conf/HubValidState_totalAssets.conf
@@ -48,7 +48,7 @@ env:
     # certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity
     # certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold 
     # certora/conf/SpokeHealthFactor.conf --rule userHealthBelowThresholdCanOnlyIncreaseHealthFactor
-    # certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewAddByShares_withoutAccrue_time_monotonic previewRemoveByAssets_withoutAccrue_time_monotonic
+    # certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewRemoveByAssets_withoutAccrue_time_monotonic
     # certora/conf/libs/LiquidationLogic.conf --rule collateralToLiquidateValueLessThanDebtToLiquidate 
     # certora/conf/HubValidState.conf --rule totalAssetsVsShares_eliminateDeficit
 
