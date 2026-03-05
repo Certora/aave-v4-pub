@@ -12,7 +12,7 @@ env:
     certora/conf/libs/SpokeUtils_toValue.conf
     certora/conf/libs/VerifySymbolicPositionStatus.conf
     certora/conf/libs/PositionStatus.conf
-    certora/conf/Hub.conf --exclude_rule noChangeToOtherSpoke supplyExchangeRateIsMonotonic
+    certora/conf/Hub.conf --exclude_rule noChangeToOtherSpoke supplyExchangeRateIsMonotonic supplyExchangeRateIsMonotonic_eliminateDeficit_simplified
     certora/conf/Hub.conf --rule noChangeToOtherSpoke
     certora/conf/HubAccrueIntegrity.conf 
     certora/conf/HubAccrueUnrealizedFee.conf
@@ -42,6 +42,7 @@ env:
     #########                                                           #########
     # certora/conf/Spoke_noCollateralNoDebt.conf
     # certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic
+    # certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic_eliminateDeficit_simplified
     # certora/conf/HubAdditivity.conf --rule drawAdditivity
     # certora/conf/HubAdditivity.conf --rule restoreAdditivity
     # certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
