@@ -122,7 +122,7 @@ interface IHubBase {
   /// @dev Extra underlying liquidity retained in the Hub can be skimmed by any Spoke through this action.
   /// @param assetId The identifier of the asset.
   /// @param drawnAmount The drawn amount to restore.
-  /// @param premiumDelta The premium delta to apply which signal premium repayment.
+  /// @param premiumDelta The premium delta to apply which signals premium repayment.
   /// @return The amount of drawn shares restored.
   function restore(
     uint256 assetId,
@@ -134,7 +134,7 @@ interface IHubBase {
   /// @dev Only callable by active spokes.
   /// @param assetId The identifier of the asset.
   /// @param drawnAmount The drawn amount to report as deficit.
-  /// @param premiumDelta The premium delta to apply which signal premium deficit.
+  /// @param premiumDelta The premium delta to apply which signals premium deficit.
   /// @return The amount of drawn shares reported as deficit.
   function reportDeficit(
     uint256 assetId,
@@ -210,6 +210,12 @@ interface IHubBase {
   /// @param shares The amount of drawn shares to convert to assets amount.
   /// @return The amount of assets converted from shares amount.
   function previewRestoreByShares(uint256 assetId, uint256 shares) external view returns (uint256);
+
+  /// @notice Returns the asset identifier for the specified underlying asset.
+  /// @dev Reverts with `AssetNotListed` if the underlying is not listed.
+  /// @param underlying The address of the underlying asset.
+  /// @return The `assetId` of the underlying asset.
+  function getAssetId(address underlying) external view returns (uint256);
 
   /// @notice Returns the underlying address and decimals of the specified asset.
   /// @param assetId The identifier of the asset.

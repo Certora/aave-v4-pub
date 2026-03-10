@@ -72,8 +72,8 @@ interface IHub is IHubBase, IAccessManaged {
   /// @dev addCap The maximum amount that can be added by a spoke, expressed in whole assets (not scaled by decimals). A value of `MAX_ALLOWED_SPOKE_CAP` indicates no cap.
   /// @dev drawCap The maximum amount that can be drawn by a spoke, expressed in whole assets (not scaled by decimals). A value of `MAX_ALLOWED_SPOKE_CAP` indicates no cap.
   /// @dev riskPremiumThreshold The maximum ratio of premium to drawn shares a spoke can have, expressed in BPS. A value of `MAX_RISK_PREMIUM_THRESHOLD` indicates no threshold.
-  /// @dev active False if the spoke is prevented from performing any actions.
-  /// @dev halted True if the spoke is prevented from performing any user-facing actions.
+  /// @dev active True if the spoke is allowed to perform any action.
+  /// @dev halted True if the spoke is prevented from performing actions that instantly update liquidity.
   /// @dev deficitRay The deficit reported by a spoke for a given asset, expressed in asset units and scaled by RAY.
   struct SpokeData {
     uint120 drawnShares;
@@ -341,12 +341,6 @@ interface IHub is IHubBase, IAccessManaged {
   /// @param underlying The address of the underlying asset.
   /// @return True if the underlying asset is listed.
   function isUnderlyingListed(address underlying) external view returns (bool);
-
-  /// @notice Returns the asset identifier for the specified underlying asset.
-  /// @dev Reverts with `AssetNotListed` if the underlying is not listed.
-  /// @param underlying The address of the underlying asset.
-  /// @return The `assetId` of the underlying asset.
-  function getAssetId(address underlying) external view returns (uint256);
 
   /// @notice Returns the number of listed assets.
   /// @return The number of listed assets.
