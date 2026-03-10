@@ -136,9 +136,10 @@ rule add_integrity(uint256 assetId, uint256 amount) {
     uint256 deficitRayBefore = hub._spokes[assetId][spoke].deficitRay;
     uint256 spokeAddedShares_ = hub._spokes[assetId][spoke].addedShares;
     uint256 liquidityBefore = hub._assets[assetId].liquidity;
-
-    add(e, assetId, amount);
-
+    uint256 sharesAddedByPreview = previewAddByAssets(e, assetId, amount);
+    uint256 sharesAdded = add(e, assetId, amount);
+    
+    assert sharesAddedByPreview == sharesAdded;
     assert liquidityBefore == hub._assets[assetId].liquidity - amount;
     assert spokeAddedShares_ < hub._spokes[assetId][spoke].addedShares;
     assert premiumSharesBefore == hub._spokes[assetId][spoke].premiumShares;
@@ -165,8 +166,10 @@ rule remove_integrity(uint256 assetId, uint256 amount, address to) {
     uint256 externalBalanceBefore = balanceByToken[asset][hub];
     uint256 toBalanceBefore = balanceByToken[asset][to];
 
-    remove(e, assetId, amount, to);
-
+    uint256 sharesRemovedByPreview = previewRemoveByAssets(e, assetId, amount);
+    uint256 sharesRemoved = remove(e, assetId, amount, to);
+    
+    assert sharesRemovedByPreview == sharesRemoved;
     assert drawnSharesBefore == hub._spokes[assetId][spoke].drawnShares;
     assert premiumSharesBefore == hub._spokes[assetId][spoke].premiumShares;
     assert premiumOffsetRayBefore == hub._spokes[assetId][spoke].premiumOffsetRay;

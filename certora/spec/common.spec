@@ -9,6 +9,8 @@ import "./symbolicRepresentation/Math_CVL.spec";
 methods {
     function Math.mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) internal returns (uint256) =>
         mulDivCVL(x, y, denominator, rounding);
+        
+    function _.divUp(uint256 a, uint256 b) internal => divUpCVL(a, b) expect uint256;
 
     function _.mulDivDown(uint256 a, uint256 b, uint256 c) internal =>
         mulDivDownCVL(a, b, c) expect uint256;

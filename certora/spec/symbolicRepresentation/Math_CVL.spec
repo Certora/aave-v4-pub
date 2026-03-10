@@ -28,6 +28,17 @@ function mulDivUpCVL(uint256 x, uint256 y, uint256 z) returns uint256 {
     return require_uint256(res); 
 }
 
+/* 
+Return ceil(x / y)
+Reverts when y==0 or x overflows
+*/
+function divUpCVL(uint256 x, uint256 y) returns uint256 { 
+    mathint res = (x + y - 1) / y;
+    if (res > max_uint256)
+        revert();
+    return require_uint256(res); 
+}
+
 
 /* 
  Returns floor(x * y / z)
