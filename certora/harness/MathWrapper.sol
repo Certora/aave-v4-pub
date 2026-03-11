@@ -43,6 +43,13 @@ contract MathWrapper {
     return MathUtils.mulDivUp(x, y, denominator);
   }
 
+  function divUp(
+    uint256 a,
+    uint256 b
+  ) external pure returns (uint256 result) {
+    return MathUtils.divUp(a, b);
+  }
+
   function RAY() public pure returns (uint256) {
     return WadRayMath.RAY;
   }

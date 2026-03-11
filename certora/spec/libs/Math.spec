@@ -30,6 +30,7 @@ methods {
     function percentMulUp(uint256 percentage, uint256 value) external returns (uint256) envfree;
     function mulDivDown(uint256 x, uint256 y, uint256 denominator) external returns (uint256) envfree;
     function mulDivUp(uint256 x, uint256 y, uint256 denominator) external returns (uint256) envfree;
+    function divUp(uint256 a, uint256 b) external returns (uint256) envfree;
     function fromRayUp(uint256 a) external returns (uint256) envfree;
     function toRay(uint256 a) external returns (uint256) envfree;
     function mulDiv(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) external returns (uint256) envfree;
@@ -70,6 +71,20 @@ rule MathUtils_mulDivUp(uint256 x, uint256 y, uint256 denominator) {
     uint256 cvlResult = mulDivUpCVL@withrevert(x, y, denominator);
     bool cvlReverted = lastReverted;
     uint256 solResult = mulDivUp@withrevert(x, y, denominator);
+    bool solReverted = lastReverted;
+    assert cvlReverted == solReverted, "Revert condition mismatch";
+    assert !cvlReverted => cvlResult == solResult, "Result value mismatch";
+}
+
+/**
+ * @title MathUtils.divUp Equivalence
+ * @notice Verifies that MathUtils.divUp matches the symbolic divUpCVL implementation.
+ * @link_property Math library integrity
+ */
+rule MathUtils_divUp(uint256 a, uint256 b) {
+    uint256 cvlResult = divUpCVL@withrevert(a, b);
+    bool cvlReverted = lastReverted;
+    uint256 solResult = divUp@withrevert(a, b);
     bool solReverted = lastReverted;
     assert cvlReverted == solReverted, "Revert condition mismatch";
     assert !cvlReverted => cvlResult == solResult, "Result value mismatch";
