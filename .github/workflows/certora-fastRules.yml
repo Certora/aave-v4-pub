@@ -23,7 +23,6 @@ env:
     certora/conf/Liquidation.conf
     certora/conf/LiquidationIntegrity.conf
     certora/conf/LiquidationReportDeficit.conf --exclude_rule moreThanOneCollateral_noReportDeficit
-    certora/conf/LiquidationReportDeficit.conf --rule moreThanOneCollateral_noReportDeficit
     certora/conf/LiquidationUserIntegrity.conf
     certora/conf/Spoke.conf --rule drawnSharesZero 
     certora/conf/Spoke.conf --exclude_rule drawnSharesZero noCollateralNoDebt increaseCollateralOrReduceDebtFunctions    
@@ -52,6 +51,7 @@ env:
     # certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic previewRemoveByAssets_withoutAccrue_time_monotonic
     # certora/conf/libs/LiquidationLogic.conf --rule collateralToLiquidateValueLessThanDebtToLiquidate 
     # certora/conf/HubValidState.conf --rule totalAssetsVsShares_eliminateDeficit
+    # certora/conf/LiquidationReportDeficit.conf --rule moreThanOneCollateral_noReportDeficit
 
 on:
   pull_request:
