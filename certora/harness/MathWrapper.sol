@@ -43,10 +43,7 @@ contract MathWrapper {
     return MathUtils.mulDivUp(x, y, denominator);
   }
 
-  function divUp(
-    uint256 a,
-    uint256 b
-  ) external pure returns (uint256 result) {
+  function divUp(uint256 a, uint256 b) external pure returns (uint256 result) {
     return MathUtils.divUp(a, b);
   }
 
