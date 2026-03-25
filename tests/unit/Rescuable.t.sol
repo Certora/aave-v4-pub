@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/Base.t.sol';
@@ -43,7 +42,7 @@ contract RescuableTest is Base {
   }
 
   function test_rescueNative_fuzz(uint256 lostAmount) public {
-    uint256 lostAmount = bound(lostAmount, 1, 100e18);
+    lostAmount = bound(lostAmount, 1, 100e18);
 
     deal(address(rescuable), lostAmount);
 

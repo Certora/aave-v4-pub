@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/unit/libraries/LiquidationLogic/LiquidationLogic.Base.t.sol';
@@ -15,7 +14,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -26,7 +25,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, true);
   }
@@ -37,7 +36,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, true);
   }
@@ -48,7 +47,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, true);
   }
@@ -59,7 +58,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -70,7 +69,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, false);
   }
@@ -81,7 +80,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -92,7 +91,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRE(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, false);
   }
@@ -103,7 +102,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -114,7 +113,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, false);
   }
@@ -125,7 +124,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -136,7 +135,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCO(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, false);
   }
@@ -147,7 +146,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -158,7 +157,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRE(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, false);
   }
@@ -169,7 +168,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCO()
+      borrowCount: BRCO()
     });
     assertEq(hasDeficit, false);
   }
@@ -180,7 +179,7 @@ contract LiquidationLogicEvaluateDeficitTest is LiquidationLogicBaseTest {
       isCollateralPositionEmpty: CRN(),
       activeCollateralCount: SCCM(),
       isDebtPositionEmpty: DRN(),
-      borrowedCount: BRCM()
+      borrowCount: BRCM()
     });
     assertEq(hasDeficit, false);
   }

@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {IERC1271} from 'src/dependencies/openzeppelin/IERC1271.sol';
@@ -11,8 +10,8 @@ contract MockERC1271Wallet is IERC1271 {
 
   error OnlyOwner();
 
-  constructor(address _owner) {
-    owner = _owner;
+  constructor(address owner_) {
+    owner = owner_;
   }
 
   function approveHash(bytes32 _hash) external {

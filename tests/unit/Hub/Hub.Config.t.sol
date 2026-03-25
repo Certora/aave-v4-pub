@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/unit/Hub/HubBase.t.sol';
@@ -16,27 +15,29 @@ contract HubConfigTest is HubBase {
     encodedIrData = abi.encode(
       IAssetInterestRateStrategy.InterestRateData({
         optimalUsageRatio: 90_00, // 90.00%
-        baseVariableBorrowRate: 5_00, // 5.00%
-        variableRateSlope1: 5_00, // 5.00%
-        variableRateSlope2: 5_00 // 5.00%
+        baseDrawnRate: 5_00, // 5.00%
+        rateGrowthBeforeOptimal: 5_00, // 5.00%
+        rateGrowthAfterOptimal: 5_00 // 5.00%
       })
     );
   }
 
-  function test_hub_deploy_revertsWith_InvalidAddress() public {
-    vm.expectRevert(IHub.InvalidAddress.selector, address(hub1));
-    new Hub(address(0));
+  function test_hub_deploy_reverts_on_InvalidConstructorInput() public {
+    DeployWrapper deployer = new DeployWrapper();
+
+    vm.expectRevert(IHub.InvalidAddress.selector);
+    deployer.deployHub({authority: address(0), proxyAdminOwner: ADMIN});
   }
 
-  function test_hub_max_riskPremium() public {
-    assertEq(Constants.MAX_ALLOWED_RISK_PREMIUM_CAP, hub1.MAX_ALLOWED_RISK_PREMIUM_CAP());
+  function test_hub_max_riskPremium() public view {
+    assertEq(Constants.MAX_RISK_PREMIUM_THRESHOLD, hub1.MAX_RISK_PREMIUM_THRESHOLD());
   }
 
   function test_addSpoke_fuzz_revertsWith_AssetNotListed(
     uint256 assetId,
     IHub.SpokeConfig calldata spokeConfig
   ) public {
-    assetId = bound(assetId, hub1.getAssetCount(), type(uint256).max);
+    assetId = bound(assetId, hub1.getAssetCount(), UINT256_MAX);
     vm.expectRevert(IHub.AssetNotListed.selector, address(hub1));
     Utils.addSpoke(hub1, ADMIN, assetId, address(spoke1), spokeConfig);
   }
@@ -93,7 +94,7 @@ contract HubConfigTest is HubBase {
     uint256 assetId,
     IHub.SpokeConfig calldata spokeConfig
   ) public {
-    assetId = bound(assetId, 0, hub1.getAssetCount() - 3); // Exclude duplicated DAI and usdy
+    assetId = bound(assetId, 0, hub1.getAssetCount() - 3); // Exclude usdy & usdz
 
     vm.expectEmit(address(hub1));
     emit IHub.UpdateSpokeConfig(assetId, address(spoke1), spokeConfig);
@@ -106,75 +107,51 @@ contract HubConfigTest is HubBase {
     address underlying,
     uint8 decimals,
     address feeReceiver,
-    address interestRateStrategy
+    address irStrategy
   ) public {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(feeReceiver);
-    assumeNotZeroAddress(interestRateStrategy);
+    assumeNotZeroAddress(irStrategy);
 
     decimals = bound(decimals, Constants.MAX_ALLOWED_UNDERLYING_DECIMALS + 1, type(uint8).max)
       .toUint8();
 
     vm.expectRevert(IHub.InvalidAssetDecimals.selector, address(hub1));
-    Utils.addAsset(
-      hub1,
-      ADMIN,
-      underlying,
-      decimals,
-      feeReceiver,
-      interestRateStrategy,
-      encodedIrData
-    );
+    Utils.addAsset(hub1, ADMIN, underlying, decimals, feeReceiver, irStrategy, encodedIrData);
   }
 
   function test_addAsset_fuzz_revertsWith_InvalidAssetDecimals_tooLow(
     address underlying,
     uint8 decimals,
     address feeReceiver,
-    address interestRateStrategy
+    address irStrategy
   ) public {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(feeReceiver);
-    assumeNotZeroAddress(interestRateStrategy);
+    assumeNotZeroAddress(irStrategy);
 
     decimals = bound(decimals, 0, Constants.MIN_ALLOWED_UNDERLYING_DECIMALS - 1).toUint8();
 
     vm.expectRevert(IHub.InvalidAssetDecimals.selector, address(hub1));
-    Utils.addAsset(
-      hub1,
-      ADMIN,
-      underlying,
-      decimals,
-      feeReceiver,
-      interestRateStrategy,
-      encodedIrData
-    );
+    Utils.addAsset(hub1, ADMIN, underlying, decimals, feeReceiver, irStrategy, encodedIrData);
   }
 
   function test_addAsset_fuzz_revertsWith_InvalidAddress_underlying(
     uint8 decimals,
     address feeReceiver,
-    address interestRateStrategy
+    address irStrategy
   ) public {
     vm.expectRevert(IHub.InvalidAddress.selector, address(hub1));
-    Utils.addAsset(
-      hub1,
-      ADMIN,
-      address(0),
-      decimals,
-      feeReceiver,
-      interestRateStrategy,
-      encodedIrData
-    );
+    Utils.addAsset(hub1, ADMIN, address(0), decimals, feeReceiver, irStrategy, encodedIrData);
   }
 
   function test_addAsset_fuzz_revertsWith_InvalidAddress_feeReceiver(
     address underlying,
     uint8 decimals,
-    address interestRateStrategy
+    address irStrategy
   ) public {
     assumeUnusedAddress(underlying);
-    assumeNotZeroAddress(interestRateStrategy);
+    assumeNotZeroAddress(irStrategy);
 
     decimals = bound(decimals, 0, Constants.MAX_ALLOWED_UNDERLYING_DECIMALS).toUint8();
 
@@ -185,7 +162,7 @@ contract HubConfigTest is HubBase {
       underlying,
       decimals,
       address(0), // feeReceiver
-      interestRateStrategy,
+      irStrategy,
       encodedIrData
     );
   }
@@ -208,11 +185,11 @@ contract HubConfigTest is HubBase {
     address underlying,
     uint8 decimals,
     address feeReceiver,
-    address interestRateStrategy
+    address irStrategy
   ) public {
     assumeUnusedAddress(underlying);
     assumeNotZeroAddress(feeReceiver);
-    assumeNotZeroAddress(interestRateStrategy);
+    assumeNotZeroAddress(irStrategy);
     decimals = bound(decimals, 0, Constants.MAX_ALLOWED_UNDERLYING_DECIMALS).toUint8();
 
     vm.expectRevert();
@@ -222,18 +199,15 @@ contract HubConfigTest is HubBase {
       underlying,
       decimals,
       feeReceiver,
-      interestRateStrategy,
+      irStrategy,
       abi.encode('invalid')
     );
   }
 
-  function test_addAsset_revertsWith_DrawnRateDowncastOverflow() public {
-    uint256 drawnRateRay = uint256(type(uint96).max) + 1;
-    _mockInterestRateRay(drawnRateRay);
-    vm.expectRevert(
-      abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 96, drawnRateRay),
-      address(hub1)
-    );
+  function test_addAsset_reverts_UnderlyingAlreadyListed() public {
+    assertTrue(hub1.isUnderlyingListed(address(tokenList.dai)));
+
+    vm.expectRevert(IHub.UnderlyingAlreadyListed.selector, address(hub1));
     Utils.addAsset(
       hub1,
       ADMIN,
@@ -245,17 +219,42 @@ contract HubConfigTest is HubBase {
     );
   }
 
-  function test_addAsset_revertsWith_BlockTimestampDowncastOverflow() public {
-    uint256 blockTimestamp = uint256(type(uint32).max) + 1;
-    vm.warp(blockTimestamp);
+  function test_addAsset_revertsWith_DrawnRateDowncastOverflow() public {
+    address underlying = address(
+      new TestnetERC20('USDA', 'USDA', Constants.MIN_ALLOWED_UNDERLYING_DECIMALS)
+    );
+
+    uint256 drawnRateRay = uint256(type(uint96).max) + 1;
+    _mockDrawnRateRay(drawnRateRay);
     vm.expectRevert(
-      abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 32, blockTimestamp),
+      abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 96, drawnRateRay),
       address(hub1)
     );
     Utils.addAsset(
       hub1,
       ADMIN,
-      address(tokenList.dai),
+      underlying,
+      18,
+      address(treasurySpoke),
+      address(irStrategy),
+      encodedIrData
+    );
+  }
+
+  function test_addAsset_revertsWith_BlockTimestampDowncastOverflow() public {
+    address underlying = address(
+      new TestnetERC20('USDA', 'USDA', Constants.MIN_ALLOWED_UNDERLYING_DECIMALS)
+    );
+    uint256 blockTimestamp = uint256(type(uint40).max) + 1;
+    vm.warp(blockTimestamp);
+    vm.expectRevert(
+      abi.encodeWithSelector(SafeCast.SafeCastOverflowedUintDowncast.selector, 40, blockTimestamp),
+      address(hub1)
+    );
+    Utils.addAsset(
+      hub1,
+      ADMIN,
+      underlying,
       18,
       address(treasurySpoke),
       address(irStrategy),
@@ -274,27 +273,24 @@ contract HubConfigTest is HubBase {
     ).toUint8();
 
     uint256 expectedAssetId = hub1.getAssetCount();
-    address interestRateStrategy = address(new AssetInterestRateStrategy(address(hub1)));
+    address irStrategy = address(new AssetInterestRateStrategy(address(hub1)));
 
     IHub.AssetConfig memory expectedConfig = IHub.AssetConfig({
       feeReceiver: feeReceiver,
       liquidityFee: 0,
-      irStrategy: interestRateStrategy,
+      irStrategy: irStrategy,
       reinvestmentController: address(0)
     });
 
-    (, uint32 baseVariableBorrowRate, , ) = abi.decode(
-      encodedIrData,
-      (uint32, uint32, uint32, uint32)
-    );
+    (, uint32 baseDrawnRate, , ) = abi.decode(encodedIrData, (uint32, uint32, uint32, uint32));
 
-    // feeReceiver risk premium cap defaults to 0
+    // feeReceiver risk premium threshold defaults to 0
     IHub.SpokeConfig memory expectedSpokeConfig = IHub.SpokeConfig({
       active: true,
-      paused: false,
+      halted: false,
       addCap: Constants.MAX_ALLOWED_SPOKE_CAP,
       drawCap: 0,
-      riskPremiumCap: 0
+      riskPremiumThreshold: 0
     });
 
     vm.expectEmit(address(hub1));
@@ -306,7 +302,7 @@ contract HubConfigTest is HubBase {
     vm.expectEmit(address(hub1));
     emit IHub.UpdateAssetConfig(expectedAssetId, expectedConfig);
     vm.expectEmit(address(hub1));
-    emit IHub.UpdateAsset(expectedAssetId, WadRayMath.RAY, baseVariableBorrowRate.bpsToRay());
+    emit IHub.UpdateAsset(expectedAssetId, WadRayMath.RAY, baseDrawnRate.bpsToRay(), 0);
 
     uint256 assetId = Utils.addAsset(
       hub1,
@@ -314,17 +310,45 @@ contract HubConfigTest is HubBase {
       underlying,
       decimals,
       feeReceiver,
-      interestRateStrategy,
+      irStrategy,
       encodedIrData
     );
 
-    assertBorrowRateSynced(hub1, assetId, 'addAsset');
+    _assertDrawnRateSynced(hub1, assetId, 'addAsset');
     assertEq(assetId, expectedAssetId, 'asset id');
     assertEq(hub1.getAssetCount(), assetId + 1, 'asset count');
     assertEq(hub1.getAsset(assetId).decimals, decimals, 'asset decimals');
     assertEq(hub1.getAssetConfig(assetId), expectedConfig);
     assertEq(hub1.getAsset(assetId).reinvestmentController, address(0)); // should init to addr(0)
     assertEq(hub1.getSpokeConfig(assetId, feeReceiver), expectedSpokeConfig);
+    assertEq(hub1.getAssetId(underlying), expectedAssetId);
+  }
+
+  function test_isUnderlyingListed() public {
+    address underlying = address(new TestnetERC20('USDA', 'USDA', 18));
+    address feeReceiver = makeAddr('feeReceiver');
+    address irStrategy = address(new AssetInterestRateStrategy(address(hub1)));
+
+    assertFalse(hub1.isUnderlyingListed(underlying));
+
+    Utils.addAsset(hub1, ADMIN, underlying, 18, feeReceiver, irStrategy, encodedIrData);
+
+    assertTrue(hub1.isUnderlyingListed(underlying));
+  }
+
+  function test_getAssetId() public view {
+    assertEq(hub1.getAssetId(address(tokenList.weth)), wethAssetId);
+    assertEq(hub1.getAssetId(address(tokenList.usdx)), usdxAssetId);
+    assertEq(hub1.getAssetId(address(tokenList.dai)), daiAssetId);
+    assertEq(hub1.getAssetId(address(tokenList.wbtc)), wbtcAssetId);
+    assertEq(hub1.getAssetId(address(tokenList.usdy)), usdyAssetId);
+    assertEq(hub1.getAssetId(address(tokenList.usdz)), usdzAssetId);
+  }
+
+  function test_getAssetId_fuzz_revertsWith_AssetNotListed(address underlying) public {
+    assumeUnusedAddress(underlying);
+    vm.expectRevert(IHub.AssetNotListed.selector, address(hub1));
+    hub1.getAssetId(underlying);
   }
 
   function test_updateAssetConfig_fuzz_revertsWith_InvalidLiquidityFee(
@@ -388,7 +412,7 @@ contract HubConfigTest is HubBase {
       'custom revert'
     );
 
-    vm.expectRevert(newConfig.irStrategy);
+    vm.expectRevert('custom revert', newConfig.irStrategy);
     vm.prank(HUB_ADMIN);
     hub1.updateAssetConfig(assetId, newConfig, encodedIrData);
   }
@@ -400,6 +424,7 @@ contract HubConfigTest is HubBase {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
     _assumeValidAssetConfig(newConfig);
     assumeUnusedAddress(newConfig.irStrategy);
+    newConfig.feeReceiver = hub1.getAssetConfig(assetId).feeReceiver; // retain fee receiver
 
     vm.mockCallRevert(
       newConfig.irStrategy,
@@ -407,7 +432,7 @@ contract HubConfigTest is HubBase {
       'custom revert'
     );
 
-    vm.expectRevert(address(newConfig.irStrategy));
+    vm.expectRevert('custom revert', newConfig.irStrategy);
     vm.prank(HUB_ADMIN);
     hub1.updateAssetConfig(assetId, newConfig, encodedIrData);
   }
@@ -415,7 +440,7 @@ contract HubConfigTest is HubBase {
   function test_updateAssetConfig_fuzz(uint256 assetId, IHub.AssetConfig memory newConfig) public {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
     _assumeValidAssetConfig(newConfig);
-    _mockInterestRateBps(newConfig.irStrategy, 5_00);
+    _mockDrawnRateBps(newConfig.irStrategy, 5_00);
     vm.mockCall(
       newConfig.irStrategy,
       abi.encodeCall(IBasicInterestRateStrategy.setInterestRateData, (assetId, encodedIrData)),
@@ -425,11 +450,35 @@ contract HubConfigTest is HubBase {
     uint256 liquidity = hub1.getAssetLiquidity(assetId);
     (uint256 drawn, ) = hub1.getAssetOwed(assetId);
 
+    address oldFeeReceiver = _getFeeReceiver(hub1, assetId);
+    IHub.SpokeConfig memory oldFeeReceiverConfig = hub1.getSpokeConfig(assetId, oldFeeReceiver);
+
     // new spoke is added only if it is different from the old one and not yet listed
-    if (
-      newConfig.feeReceiver != _getFeeReceiver(hub1, assetId) &&
-      !hub1.isSpokeListed(assetId, newConfig.feeReceiver)
-    ) {
+    bool isNewFeeReceiver = newConfig.feeReceiver != _getFeeReceiver(hub1, assetId);
+    if (isNewFeeReceiver && !hub1.isSpokeListed(assetId, newConfig.feeReceiver)) {
+      if (_calcUnrealizedFees(hub1, assetId) > 0) {
+        uint256 accruedFees = hub1.getAssetAccruedFees(assetId);
+        vm.expectEmit(address(hub1));
+        emit IHub.MintFeeShares(
+          assetId,
+          _getFeeReceiver(hub1, assetId),
+          hub1.previewAddByAssets(assetId, accruedFees),
+          accruedFees
+        );
+      }
+      vm.expectEmit(address(hub1));
+      emit IHub.UpdateSpokeConfig(
+        assetId,
+        oldFeeReceiver,
+        IHub.SpokeConfig({
+          active: oldFeeReceiverConfig.active,
+          halted: oldFeeReceiverConfig.halted,
+          addCap: 0,
+          drawCap: 0,
+          riskPremiumThreshold: 0
+        })
+      );
+
       vm.expectEmit(address(hub1));
       emit IHub.AddSpoke(assetId, newConfig.feeReceiver);
       vm.expectEmit(address(hub1));
@@ -438,10 +487,10 @@ contract HubConfigTest is HubBase {
         newConfig.feeReceiver,
         IHub.SpokeConfig({
           active: true,
-          paused: false,
+          halted: false,
           addCap: Constants.MAX_ALLOWED_SPOKE_CAP,
           drawCap: 0,
-          riskPremiumCap: 0
+          riskPremiumThreshold: 0
         })
       );
     } else {
@@ -457,7 +506,8 @@ contract HubConfigTest is HubBase {
         drawn: drawn,
         deficit: 0,
         swept: 0
-      })
+      }),
+      isNewFeeReceiver ? 0 : hub1.getAssetAccruedFees(assetId)
     );
     vm.expectEmit(address(hub1));
     emit IHub.UpdateAssetConfig(assetId, newConfig);
@@ -480,7 +530,7 @@ contract HubConfigTest is HubBase {
     );
 
     assertEq(hub1.getAssetConfig(assetId), newConfig);
-    assertBorrowRateSynced(hub1, assetId, 'updateAssetConfig');
+    _assertDrawnRateSynced(hub1, assetId, 'updateAssetConfig');
   }
 
   function test_updateAssetConfig_fuzz_Scenario(uint256 assetId) public {
@@ -512,22 +562,102 @@ contract HubConfigTest is HubBase {
     _addLiquidity(assetId, amount);
     _drawLiquidity(assetId, amount, true);
 
+    skip(365 days);
+
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
     address oldFeeReceiver = config.feeReceiver;
     config.feeReceiver = makeAddr('newFeeReceiver');
 
-    uint256 feesShares = hub1.getSpokeAddedShares(assetId, oldFeeReceiver);
-    assertTrue(feesShares > 0, 'no fees');
+    uint256 expectedFeeReceiverAddedAssets = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
+    assertTrue(expectedFeeReceiverAddedAssets > 0, 'no fees');
 
     test_updateAssetConfig_fuzz(assetId, config);
 
-    assertEq(hub1.getSpokeAddedShares(assetId, oldFeeReceiver), feesShares);
+    assertApproxEqAbs(
+      hub1.getSpokeAddedAssets(assetId, oldFeeReceiver),
+      expectedFeeReceiverAddedAssets,
+      2
+    );
     assertEq(hub1.getSpokeAddedShares(assetId, config.feeReceiver), 0);
 
     IHub.SpokeConfig memory spokeConfig = hub1.getSpokeConfig(assetId, oldFeeReceiver);
     assertTrue(spokeConfig.active, 'old fee receiver remains active');
     assertEq(spokeConfig.addCap, 0, 'old fee receiver add cap');
     assertEq(spokeConfig.drawCap, 0, 'old fee receiver draw cap');
+  }
+
+  /// Updates the fee receiver to a new spoke; old fee receiver active/halted flags are preserved
+  function test_updateAssetConfig_oldFeeReceiver_flags() public {
+    _test_updateAssetConfig_oldFeeReceiver_flags({active: true, halted: true});
+    _test_updateAssetConfig_oldFeeReceiver_flags({active: true, halted: false});
+    _test_updateAssetConfig_oldFeeReceiver_flags({active: false, halted: true});
+    _test_updateAssetConfig_oldFeeReceiver_flags({active: false, halted: false});
+  }
+
+  function _test_updateAssetConfig_oldFeeReceiver_flags(bool active, bool halted) internal {
+    uint256 assetId = _randomAssetId(hub1);
+
+    address oldFeeReceiver = _getFeeReceiver(hub1, assetId);
+    IHub.SpokeConfig memory oldFeeReceiverConfig = hub1.getSpokeConfig(assetId, oldFeeReceiver);
+    oldFeeReceiverConfig.active = active;
+    oldFeeReceiverConfig.halted = halted;
+
+    // update old fee receiver config flags
+    Utils.updateSpokeConfig(hub1, ADMIN, assetId, oldFeeReceiver, oldFeeReceiverConfig);
+    assertEq(hub1.getSpokeConfig(assetId, oldFeeReceiver).active, active);
+    assertEq(hub1.getSpokeConfig(assetId, oldFeeReceiver).halted, halted);
+
+    // update asset config to new fee receiver; old fee receiver halted/active flags should be unchanged
+    IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
+    config.feeReceiver = makeAddr('newFeeReceiver');
+    test_updateAssetConfig_fuzz(assetId, config);
+
+    assertEq(_getFeeReceiver(hub1, assetId), config.feeReceiver, 'new fee receiver');
+    assertEq(
+      hub1.getSpokeConfig(assetId, oldFeeReceiver).active,
+      active,
+      'old fee receiver active'
+    );
+    assertEq(
+      hub1.getSpokeConfig(assetId, oldFeeReceiver).halted,
+      halted,
+      'old fee receiver halted'
+    );
+  }
+
+  /// Updates the fee receiver while the current fee receiver is not active
+  function test_updateAssetConfig_NewFeeReceiver_revertsWith_SpokeNotActive_noFees() public {
+    uint256 assetId = daiAssetId;
+
+    uint256 amount = 1000e18;
+    _addLiquidity(assetId, amount);
+    _drawLiquidity(assetId, amount, true);
+    skip(365 days);
+
+    _updateSpokeActive(hub1, assetId, _getFeeReceiver(hub1, assetId), false);
+    IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
+    config.feeReceiver = makeAddr('newFeeReceiver');
+
+    vm.expectRevert(IHub.SpokeNotActive.selector, address(hub1));
+    Utils.updateAssetConfig(hub1, ADMIN, assetId, config, new bytes(0));
+  }
+
+  /// Updates the fee receiver while the current fee receiver is not active and no fees are accrued
+  function test_updateAssetConfig_NewFeeReceiver_noFees() public {
+    uint256 assetId = daiAssetId;
+
+    uint256 amount = 1000e18;
+    _addLiquidity(assetId, amount);
+    _drawLiquidity(assetId, amount, true);
+    skip(365 days);
+
+    Utils.mintFeeShares(hub1, assetId, ADMIN);
+
+    _updateSpokeActive(hub1, assetId, _getFeeReceiver(hub1, assetId), false);
+    IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
+    config.feeReceiver = makeAddr('newFeeReceiver');
+
+    Utils.updateAssetConfig(hub1, ADMIN, assetId, config, new bytes(0));
   }
 
   /// Updates the fee receiver by reusing a previously assigned spoke, with no impact on accrued fees
@@ -541,6 +671,7 @@ contract HubConfigTest is HubBase {
     uint256 oldFees = hub1.getSpokeAddedShares(assetId, oldFeeReceiver);
 
     skip(365 days);
+    Utils.mintFeeShares(hub1, assetId, ADMIN);
 
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
     address newFeeReceiver = config.feeReceiver;
@@ -555,21 +686,6 @@ contract HubConfigTest is HubBase {
 
     assertEq(hub1.getSpokeAddedShares(assetId, config.feeReceiver), oldFees);
     assertEq(hub1.getSpokeAddedShares(assetId, newFeeReceiver), newFees);
-  }
-
-  /// Updates the fee receiver to an existing spoke of the hub1, so ends up with existing supplied shares plus accrued fees
-  function test_updateAssetConfig_fuzz_UseExistingSpokeAsFeeReceiver_revertsWith_SpokeAlreadyListed(
-    uint256 assetId
-  ) public {
-    assetId = vm.randomUint(0, hub1.getAssetCount() - 1);
-    address newFeeReceiver = address(spoke1);
-
-    IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
-    config.feeReceiver = newFeeReceiver;
-
-    vm.expectRevert(IHub.SpokeAlreadyListed.selector, address(hub1));
-    vm.prank(HUB_ADMIN);
-    hub1.updateAssetConfig(assetId, config, new bytes(0));
   }
 
   /// Updates the fee receiver to an existing spoke of the hub1 which is already listed on the asset
@@ -609,13 +725,14 @@ contract HubConfigTest is HubBase {
     _drawLiquidity(assetId, amount, true);
 
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
-    uint256 feeShares = hub1.getSpokeAddedShares(assetId, config.feeReceiver);
-    assertTrue(feeShares > 0, 'no fees');
+    uint256 expectedFeeReceiverAddedAssets = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
+    assertTrue(expectedFeeReceiverAddedAssets > 0, 'no fees');
 
     config.liquidityFee = liquidityFee;
     test_updateAssetConfig_fuzz(assetId, config);
 
-    assertEq(hub1.getSpokeAddedShares(assetId, config.feeReceiver), feeShares);
+    assertEq(_calcUnrealizedFees(hub1, assetId), 0);
+    assertEq(_getExpectedFeeReceiverAddedAssets(hub1, assetId), expectedFeeReceiverAddedAssets);
   }
 
   /// No fees accrued whe updating liquidity fee from zero to non-zero
@@ -642,24 +759,24 @@ contract HubConfigTest is HubBase {
     assertEq(hub1.getSpokeAddedShares(assetId, config.feeReceiver), 0);
   }
 
-  /// Triggers accrual when interest rate strategy is updated, based on old strategy
-  /// Also makes sure that the base borrow rate is updated after accrual
-  function test_updateAssetConfig_fuzz_NewInterestRateStrategy(uint256 assetId) public {
+  /// Triggers accrual when drawn rate strategy is updated, based on old strategy
+  /// Also makes sure that the base drawn rate is updated after accrual
+  function test_updateAssetConfig_fuzz_NewDrawnRateStrategy(uint256 assetId) public {
     assetId = bound(assetId, 0, hub1.getAssetCount() - 1);
 
     uint256 amount = 1000e18;
     _addLiquidity(assetId, amount);
     _drawLiquidity(assetId, amount, true);
 
-    uint256 fees = hub1.getSpokeAddedShares(assetId, address(treasurySpoke));
-    assertTrue(fees > 0, 'no fees');
+    uint256 expectedFeeReceiverAddedAssets = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
+    assertTrue(expectedFeeReceiverAddedAssets > 0, 'no fees');
 
     skip(365 days);
-    uint256 futureFees = hub1.getSpokeAddedShares(assetId, address(treasurySpoke));
+    uint256 futureFees = _getExpectedFeeReceiverAddedAssets(hub1, assetId);
     rewind(365 days);
 
     AssetInterestRateStrategy newIrStrategy = new AssetInterestRateStrategy(address(hub1));
-    _mockInterestRateRay(address(newIrStrategy), hub1.getAssetDrawnRate(assetId) * 10);
+    _mockDrawnRateRay(address(newIrStrategy), hub1.getAssetDrawnRate(assetId) * 10);
     IHub.AssetConfig memory config = hub1.getAssetConfig(assetId);
     config.irStrategy = address(newIrStrategy);
 
@@ -677,7 +794,7 @@ contract HubConfigTest is HubBase {
   function _assumeValidAssetConfig(IHub.AssetConfig memory newConfig) internal pure {
     newConfig.liquidityFee = bound(newConfig.liquidityFee, 0, PercentageMath.PERCENTAGE_FACTOR)
       .toUint16();
-    vm.assume(address(newConfig.feeReceiver) != address(0) || newConfig.liquidityFee == 0);
+    assumeNotZeroAddress(newConfig.feeReceiver);
     assumeNotPrecompile(newConfig.feeReceiver);
     assumeNotForgeAddress(newConfig.feeReceiver);
     assumeNotZeroAddress(newConfig.irStrategy);

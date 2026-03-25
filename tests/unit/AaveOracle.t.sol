@@ -1,16 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/Base.t.sol';
 
+/// forge-config: default.allow_internal_expect_revert = true
 contract AaveOracleTest is Base {
   using SafeCast for uint256;
 
   AaveOracle public oracle;
 
-  uint8 private constant _decimals = 8;
-  string private constant _description = 'Spoke 1 (USD)';
+  uint8 private constant _oracleDecimals = 8;
+
+  address public deployer = makeAddr('DEPLOYER');
 
   address private _source1 = makeAddr('SOURCE1');
   address private _source2 = makeAddr('SOURCE2');
@@ -22,41 +23,80 @@ contract AaveOracleTest is Base {
 
   function setUp() public override {
     deployFixtures();
-    oracle = new AaveOracle(address(spoke1), _decimals, _description);
-  }
 
-  function test_deploy_revertsWith_InvalidAddress() public {
-    vm.expectRevert(IAaveOracle.InvalidAddress.selector);
-    new AaveOracle(address(0), uint8(vm.randomUint()), string(vm.randomBytes(64)));
+    vm.startPrank(deployer);
+    oracle = new AaveOracle(_oracleDecimals);
+    spoke1 = ISpoke(
+      address(
+        DeployUtils.deploySpokeImplementation(
+          address(oracle),
+          Constants.MAX_ALLOWED_USER_RESERVES_LIMIT
+        )
+      )
+    );
+    oracle.setSpoke(address(spoke1));
+    vm.stopPrank();
   }
 
   function test_constructor() public {
-    oracle = new AaveOracle(address(spoke1), _decimals, _description);
+    vm.prank(deployer);
+    oracle = new AaveOracle(_oracleDecimals);
 
-    test_spoke();
+    assertEq(oracle.spoke(), address(0));
     test_decimals();
-    test_description();
   }
 
   function test_fuzz_constructor(uint8 decimals) public {
     decimals = bound(decimals, 0, 18).toUint8();
-    oracle = new AaveOracle(address(spoke1), decimals, _description);
+    oracle = new AaveOracle(decimals);
 
-    test_spoke();
-    assertEq(oracle.DECIMALS(), decimals);
-    test_description();
-  }
-
-  function test_spoke() public view {
-    assertEq(oracle.SPOKE(), address(spoke1));
+    assertEq(oracle.spoke(), address(0));
+    assertEq(oracle.decimals(), decimals);
   }
 
   function test_decimals() public view {
-    assertEq(oracle.DECIMALS(), _decimals);
+    assertEq(oracle.decimals(), _oracleDecimals);
   }
 
-  function test_description() public view {
-    assertEq(oracle.DESCRIPTION(), _description);
+  function test_setSpoke_revertsWith_OnlyDeployer(address setter) public {
+    vm.assume(setter != deployer);
+
+    vm.expectRevert(IAaveOracle.OnlyDeployer.selector);
+    vm.prank(setter);
+    oracle.setSpoke(address(spoke1));
+  }
+
+  function test_setSpoke_revertsWith_InvalidAddress() public {
+    vm.expectRevert(IAaveOracle.InvalidAddress.selector);
+
+    vm.prank(deployer);
+    oracle.setSpoke(address(0));
+  }
+
+  function test_setSpoke_revertsWith_SpokeAlreadySet() public {
+    vm.expectRevert(IAaveOracle.SpokeAlreadySet.selector);
+    vm.prank(deployer);
+    oracle.setSpoke(address(spoke1));
+  }
+
+  function test_setSpoke() public {
+    vm.startPrank(deployer);
+    oracle = new AaveOracle(_oracleDecimals);
+
+    address newSpoke = address(
+      DeployUtils.deploySpokeImplementation(
+        address(oracle),
+        Constants.MAX_ALLOWED_USER_RESERVES_LIMIT
+      )
+    );
+
+    vm.expectEmit(address(oracle));
+    emit IAaveOracle.SetSpoke(address(newSpoke));
+
+    oracle.setSpoke(address(newSpoke));
+    vm.stopPrank();
+
+    assertEq(oracle.spoke(), address(newSpoke));
   }
 
   function test_setReserveSource_revertsWith_OnlySpoke() public {
@@ -67,7 +107,7 @@ contract AaveOracleTest is Base {
   }
 
   function test_setReserveSource_revertsWith_InvalidSourceDecimals() public {
-    _mockSourceDecimals(_source1, _decimals + 1);
+    _mockSourceDecimals(_source1, _oracleDecimals + 1);
 
     vm.expectRevert(abi.encodeWithSelector(IAaveOracle.InvalidSourceDecimals.selector, reserveId1));
 
@@ -76,7 +116,7 @@ contract AaveOracleTest is Base {
   }
 
   function test_setReserveSource_revertsWith_InvalidSource() public {
-    _mockSourceDecimals(address(0), _decimals);
+    _mockSourceDecimals(address(0), _oracleDecimals);
 
     vm.expectRevert(abi.encodeWithSelector(IAaveOracle.InvalidSource.selector, reserveId1));
 
@@ -85,30 +125,47 @@ contract AaveOracleTest is Base {
   }
 
   function test_setReserveSource_revertsWith_InvalidPrice() public {
-    _mockSourceDecimals(_source1, _decimals);
-    _mockSourceLatestRoundData(_source1, -1e8);
+    _mockSourceDecimals(_source1, _oracleDecimals);
+    _mockSourceLatestAnswer(_source1, -1e8);
     vm.expectRevert(abi.encodeWithSelector(IAaveOracle.InvalidPrice.selector, reserveId1));
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
 
-    _mockSourceLatestRoundData(_source1, 0);
+    _mockSourceLatestAnswer(_source1, 0);
     vm.expectRevert(abi.encodeWithSelector(IAaveOracle.InvalidPrice.selector, reserveId1));
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
 
-    _mockSourceLatestRoundData(_source1, -100e18);
+    _mockSourceLatestAnswer(_source1, -100e18);
     vm.expectRevert(abi.encodeWithSelector(IAaveOracle.InvalidPrice.selector, reserveId1));
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
   }
 
+  function test_setReserveSource_revertsWith_OracleMismatch() public {
+    vm.startPrank(deployer);
+    IAaveOracle newOracle = IAaveOracle(new AaveOracle(_oracleDecimals));
+
+    // set new spoke to a separate oracle
+    address mismatchOracle = address(new AaveOracle(_oracleDecimals));
+    address newSpoke = address(
+      DeployUtils.deploySpokeImplementation(
+        mismatchOracle,
+        Constants.MAX_ALLOWED_USER_RESERVES_LIMIT
+      )
+    );
+
+    vm.expectRevert(IAaveOracle.OracleMismatch.selector);
+    newOracle.setSpoke(newSpoke);
+  }
+
   function test_setReserveSource() public {
-    _mockSourceDecimals(_source1, _decimals);
-    _mockSourceLatestRoundData(_source1, 1e8);
+    _mockSourceDecimals(_source1, _oracleDecimals);
+    _mockSourceLatestAnswer(_source1, 1e8);
 
     vm.expectEmit();
     emit IAaveOracle.UpdateReserveSource(reserveId1, _source1);
-    vm.expectCall(_source1, abi.encodeCall(AggregatorV3Interface.latestRoundData, ()));
+    vm.expectCall(_source1, abi.encodeCall(IPriceFeed.latestAnswer, ()));
 
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
@@ -126,13 +183,13 @@ contract AaveOracleTest is Base {
   }
 
   function test_getReservePrice_revertsWith_InvalidPrice() public {
-    _mockSourceDecimals(_source1, _decimals);
-    _mockSourceLatestRoundData(_source1, 1e8);
+    _mockSourceDecimals(_source1, _oracleDecimals);
+    _mockSourceLatestAnswer(_source1, 1e8);
 
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
 
-    _mockSourceLatestRoundData(_source1, -1e8);
+    _mockSourceLatestAnswer(_source1, -1e8);
 
     vm.expectRevert(abi.encodeWithSelector(IAaveOracle.InvalidPrice.selector, reserveId1));
     oracle.getReservePrice(reserveId1);
@@ -141,13 +198,13 @@ contract AaveOracleTest is Base {
   function test_getReservePrice() public {
     test_setReserveSource();
 
-    vm.expectCall(_source1, abi.encodeCall(AggregatorV3Interface.latestRoundData, ()));
+    vm.expectCall(_source1, abi.encodeCall(IPriceFeed.latestAnswer, ()));
     assertEq(oracle.getReservePrice(reserveId1), 1e8);
   }
 
   function test_getReservePrices_revertsWith_InvalidSource() public {
-    _mockSourceDecimals(_source1, _decimals);
-    _mockSourceLatestRoundData(_source1, 1e8);
+    _mockSourceDecimals(_source1, _oracleDecimals);
+    _mockSourceLatestAnswer(_source1, 1e8);
 
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
@@ -161,10 +218,10 @@ contract AaveOracleTest is Base {
   }
 
   function test_getReservePrices() public {
-    _mockSourceDecimals(_source1, _decimals);
-    _mockSourceLatestRoundData(_source1, 1e8);
-    _mockSourceDecimals(_source2, _decimals);
-    _mockSourceLatestRoundData(_source2, 2e8);
+    _mockSourceDecimals(_source1, _oracleDecimals);
+    _mockSourceLatestAnswer(_source1, 1e8);
+    _mockSourceDecimals(_source2, _oracleDecimals);
+    _mockSourceLatestAnswer(_source2, 2e8);
 
     vm.prank(address(spoke1));
     oracle.setReserveSource(reserveId1, _source1);
@@ -181,20 +238,10 @@ contract AaveOracleTest is Base {
   }
 
   function _mockSourceDecimals(address source, uint8 decimals) internal {
-    vm.mockCall(source, abi.encodeCall(AggregatorV3Interface.decimals, ()), abi.encode(decimals));
+    vm.mockCall(source, abi.encodeCall(IPriceFeed.decimals, ()), abi.encode(decimals));
   }
 
-  function _mockSourceLatestRoundData(address source, int256 price) internal {
-    vm.mockCall(
-      source,
-      abi.encodeCall(AggregatorV3Interface.latestRoundData, ()),
-      abi.encode(
-        uint80(vm.getBlockTimestamp()),
-        price,
-        vm.getBlockTimestamp(),
-        vm.getBlockTimestamp(),
-        uint80(vm.getBlockTimestamp())
-      )
-    );
+  function _mockSourceLatestAnswer(address source, int256 price) internal {
+    vm.mockCall(source, abi.encodeCall(IPriceFeed.latestAnswer, ()), abi.encode(price));
   }
 }

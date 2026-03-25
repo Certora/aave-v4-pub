@@ -1,33 +1,14 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
 import 'tests/Base.t.sol';
 
 contract NoncesKeyedTest is Base {
   using SafeCast for *;
-  NoncesKeyedMock public mock;
+  MockNoncesKeyed public mock;
 
   function setUp() public override {
-    mock = new NoncesKeyedMock();
-  }
-
-  function test_useNonce_zeroKey_monotonic(bytes32) public {
-    vm.setArbitraryStorage(address(mock));
-
-    address owner = vm.randomAddress();
-
-    uint256 keyNonce = mock.nonces(owner);
-    (uint192 key, ) = _unpackNonce(keyNonce);
-    assertEq(key, 0);
-
-    vm.prank(owner);
-    uint256 consumedKeyNonce = mock.useNonce();
-    (key, ) = _unpackNonce(consumedKeyNonce);
-    assertEq(key, 0);
-
-    assertEq(consumedKeyNonce, keyNonce);
-    _assertNonceIncrement(mock, owner, keyNonce);
+    mock = new MockNoncesKeyed();
   }
 
   function test_useNonce_monotonic(bytes32) public {

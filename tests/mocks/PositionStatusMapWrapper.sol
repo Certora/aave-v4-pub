@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {PositionStatusMap} from 'src/spoke/libraries/PositionStatusMap.sol';
@@ -40,6 +39,10 @@ contract PositionStatusMapWrapper {
 
   function collateralCount(uint256 reserveCount) external view returns (uint256) {
     return _p.collateralCount(reserveCount);
+  }
+
+  function borrowCount(uint256 reserveCount) external view returns (uint256) {
+    return _p.borrowCount(reserveCount);
   }
 
   function getBucketWord(uint256 reserveId) external view returns (uint256) {

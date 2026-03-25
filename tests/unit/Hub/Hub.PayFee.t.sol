@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/unit/Hub/HubBase.t.sol';
@@ -12,7 +11,7 @@ contract HubPayFeeTest is HubBase {
   }
 
   function test_payFee_revertsWith_SpokeNotActive() public {
-    updateSpokeActive(hub1, daiAssetId, address(spoke1), false);
+    _updateSpokeActive(hub1, daiAssetId, address(spoke1), false);
     vm.expectRevert(IHub.SpokeNotActive.selector, address(hub1));
     vm.prank(address(spoke1));
     hub1.payFeeShares(daiAssetId, 1);
@@ -29,7 +28,6 @@ contract HubPayFeeTest is HubBase {
     });
 
     uint256 feeShares = hub1.getSpokeAddedShares(daiAssetId, address(spoke1));
-    uint256 feeAmount = hub1.getSpokeAddedAssets(daiAssetId, address(spoke1));
 
     vm.expectRevert(stdError.arithmeticError);
     vm.prank(address(spoke1));
@@ -106,7 +104,8 @@ contract HubPayFeeTest is HubBase {
     vm.prank(address(spoke1));
     hub1.payFeeShares(daiAssetId, feeShares);
 
-    assertBorrowRateSynced(hub1, daiAssetId, 'payFee');
+    _assertDrawnRateSynced(hub1, daiAssetId, 'payFee');
+    _assertHubLiquidity(hub1, daiAssetId, 'payFee');
     uint256 spokeSharesAfter = hub1.getSpokeAddedShares(daiAssetId, address(spoke1));
     uint256 feeReceiverSharesAfter = hub1.getSpokeAddedShares(
       daiAssetId,

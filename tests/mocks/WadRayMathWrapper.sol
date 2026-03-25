@@ -1,10 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {WadRayMath} from 'src/libraries/math/WadRayMath.sol';
 
 contract WadRayMathWrapper {
+  function WAD_DECIMALS() public pure returns (uint256) {
+    return WadRayMath.WAD_DECIMALS;
+  }
+
   function WAD() public pure returns (uint256) {
     return WadRayMath.WAD;
   }
@@ -53,8 +56,16 @@ contract WadRayMathWrapper {
     return WadRayMath.toWad(a);
   }
 
+  function toRay(uint256 a) public pure returns (uint256) {
+    return WadRayMath.toRay(a);
+  }
+
   function fromWadDown(uint256 a) public pure returns (uint256) {
     return WadRayMath.fromWadDown(a);
+  }
+
+  function fromRayUp(uint256 a) public pure returns (uint256) {
+    return WadRayMath.fromRayUp(a);
   }
 
   function bpsToWad(uint256 a) public pure returns (uint256) {
@@ -63,5 +74,9 @@ contract WadRayMathWrapper {
 
   function bpsToRay(uint256 a) public pure returns (uint256) {
     return WadRayMath.bpsToRay(a);
+  }
+
+  function roundRayUp(uint256 a) public pure returns (uint256) {
+    return WadRayMath.roundRayUp(a);
   }
 }

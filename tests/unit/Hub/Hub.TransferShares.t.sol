@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/unit/Hub/HubBase.t.sol';
@@ -31,7 +30,8 @@ contract HubTransferSharesTest is HubBase {
     vm.prank(address(spoke1));
     hub1.transferShares(daiAssetId, moveAmount, address(spoke2));
 
-    assertBorrowRateSynced(hub1, daiAssetId, 'transferShares');
+    _assertDrawnRateSynced(hub1, daiAssetId, 'transferShares');
+    _assertHubLiquidity(hub1, daiAssetId, 'transferShares');
     assertEq(hub1.getSpokeAddedShares(daiAssetId, address(spoke1)), suppliedShares - moveAmount);
     assertEq(hub1.getSpokeAddedShares(daiAssetId, address(spoke2)), moveAmount);
     assertEq(hub1.getAddedShares(daiAssetId), assetSuppliedShares);
@@ -81,36 +81,32 @@ contract HubTransferSharesTest is HubBase {
     hub1.transferShares(daiAssetId, suppliedShares, address(spoke2));
   }
 
-  function test_transferShares_revertsWith_SpokePaused() public {
+  function test_transferShares_revertsWith_SpokeHalted() public {
     uint256 supplyAmount = 1000e18;
     Utils.add(hub1, daiAssetId, address(spoke1), supplyAmount, bob);
 
-    // pause spoke1
-    IHub.SpokeConfig memory spokeConfig = hub1.getSpokeConfig(daiAssetId, address(spoke1));
-    spokeConfig.paused = true;
-    vm.prank(HUB_ADMIN);
-    hub1.updateSpokeConfig(daiAssetId, address(spoke1), spokeConfig);
-    assertTrue(hub1.getSpokeConfig(daiAssetId, address(spoke1)).paused);
+    // halt spoke1
+    _updateSpokeHalted(hub1, daiAssetId, address(spoke1), true);
 
     uint256 suppliedShares = hub1.getSpokeAddedShares(daiAssetId, address(spoke1));
     assertEq(suppliedShares, hub1.previewRemoveByShares(daiAssetId, supplyAmount));
 
-    // try to transfer supplied shares from paused spoke1
+    // try to transfer supplied shares from halted spoke1
     vm.prank(address(spoke1));
-    vm.expectRevert(IHub.SpokePaused.selector);
+    vm.expectRevert(IHub.SpokeHalted.selector);
     hub1.transferShares(daiAssetId, suppliedShares, address(spoke2));
   }
 
   function test_transferShares_revertsWith_AddCapExceeded() public {
-    uint40 newSupplyCap = 1000;
+    uint40 newAddCap = 1000;
 
-    uint256 supplyAmount = newSupplyCap * 10 ** tokenList.dai.decimals() + 1;
+    uint256 supplyAmount = newAddCap * 10 ** tokenList.dai.decimals() + 1;
     Utils.add(hub1, daiAssetId, address(spoke1), supplyAmount, bob);
 
     uint256 suppliedShares = hub1.getSpokeAddedShares(daiAssetId, address(spoke1));
     assertEq(suppliedShares, hub1.previewRemoveByShares(daiAssetId, supplyAmount));
 
-    _updateAddCap(daiAssetId, address(spoke2), newSupplyCap);
+    _updateAddCap(daiAssetId, address(spoke2), newAddCap);
 
     // attempting transfer of supplied shares exceeding cap on spoke2
     assertLt(
@@ -118,7 +114,7 @@ contract HubTransferSharesTest is HubBase {
       hub1.previewRemoveByShares(daiAssetId, supplyAmount)
     );
 
-    vm.expectRevert(abi.encodeWithSelector(IHub.AddCapExceeded.selector, newSupplyCap));
+    vm.expectRevert(abi.encodeWithSelector(IHub.AddCapExceeded.selector, newAddCap));
     vm.prank(address(spoke1));
     hub1.transferShares(daiAssetId, suppliedShares, address(spoke2));
   }

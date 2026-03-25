@@ -1,16 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
-// Copyright (c) 2025 Aave Labs
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import 'tests/unit/Spoke/SpokeBase.t.sol';
 
 contract SpokeWithdrawValidationTest is SpokeBase {
+  using ReserveFlagsMap for ReserveFlags;
+
   function test_withdraw_revertsWith_ReservePaused() public {
     uint256 daiReserveId = _daiReserveId(spoke1);
     uint256 amount = 100e18;
 
     _updateReservePausedFlag(spoke1, daiReserveId, true);
-    assertTrue(spoke1.getReserve(daiReserveId).paused);
+    assertTrue(spoke1.getReserve(daiReserveId).flags.paused());
 
     vm.expectRevert(ISpoke.ReservePaused.selector);
     vm.prank(bob);
@@ -106,10 +107,10 @@ contract SpokeWithdrawValidationTest is SpokeBase {
     reserveId = bound(reserveId, 0, spokeInfo[spoke1].MAX_ALLOWED_ASSET_ID);
     supplyAmount = bound(supplyAmount, 2, MAX_SUPPLY_AMOUNT);
     borrowAmount = bound(borrowAmount, 1, supplyAmount / 2); // ensure it is within Collateral Factor
-    rate = bound(rate, 1, MAX_BORROW_RATE);
+    rate = bound(rate, 1, Constants.MAX_ALLOWED_DRAWN_RATE);
     skipTime = bound(skipTime, 1, MAX_SKIP_TIME);
 
-    _mockInterestRateBps(rate);
+    _mockDrawnRateBps(rate);
 
     // Alice supply
     Utils.supplyCollateral({

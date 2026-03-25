@@ -11,6 +11,7 @@ out/
 
 package-lock.json
 node_modules
+__pycache__
 
 # ignore foundry deploy artifacts
 broadcast/
@@ -21,7 +22,7 @@ lcov*
 
 report/
 .DS_Store
-π
+.venv/
+
 # certora internal artifacts
 .certora_internal/
-
