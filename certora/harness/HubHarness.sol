@@ -7,8 +7,12 @@ pragma solidity ^0.8.0;
 contract HubHarness is Hub {
   using AssetLogic for Asset;
 
-  constructor(address authority_) Hub(authority_) {
-    // Intentionally left blank
+  constructor(address authority_) {
+    _setAuthority(authority_);
+  }
+
+  function initialize(address authority) external override {
+    _setAuthority(authority);
   }
 
   function accrueInterest(uint256 assetId) external {
