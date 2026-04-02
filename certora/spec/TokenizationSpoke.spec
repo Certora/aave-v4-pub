@@ -1,0 +1,499 @@
+
+/**
+ * @title TokenizationSpoke Contract Specification
+ * @notice Verify TokenizationSpokeInstance ERC4626 compliance and integrity properties
+ * @dev This spec verifies ERC4626 vault properties, immutable values, and basic integrity rules
+ *
+ * Verification Scope:
+ * - ERC4626 compliance (convertToShares, convertToAssets, preview functions)
+ * - Immutable values integrity
+ * - View function integrity
+ * - Basic state invariants
+ * - Deposit/withdraw integrity (adapted from Spoke rules)
+ * - Hub interaction integrity
+ *
+ * To run this spec:
+ * certoraRun certora/conf/conf
+ */
+
+import "./symbolicRepresentation/ERC20s_CVL.spec";
+import "./symbolicRepresentation/SymbolicHub.spec";
+
+using TokenizationSpokeInstance as tokenizationSpoke;
+
+methods {
+    function asset() external returns (address) envfree;
+    function hub() external returns (address) envfree;
+    function balanceOf(address account) external returns (uint256) envfree;
+    function totalSupply() external returns (uint256) envfree;
+
+    // ECDSA internal functions => NONDET
+    function ECDSA.tryRecover(bytes32, bytes memory) internal returns (address, ECDSA.RecoverError, bytes32) => NONDET;
+    function ECDSA.tryRecoverCalldata(bytes32, bytes calldata) internal returns (address, ECDSA.RecoverError, bytes32) => NONDET;
+    function ECDSA.recover(bytes32, bytes memory) internal returns (address) => NONDET;
+    function ECDSA.recoverCalldata(bytes32, bytes calldata) internal returns (address) => NONDET;
+    function ECDSA.tryRecover(bytes32, bytes32, bytes32) internal returns (address, ECDSA.RecoverError, bytes32) => NONDET;
+    function ECDSA.recover(bytes32, bytes32, bytes32) internal returns (address) => NONDET;
+    function ECDSA.tryRecover(bytes32, uint8, bytes32, bytes32) internal returns (address, ECDSA.RecoverError, bytes32) => NONDET;
+    function ECDSA.recover(bytes32, uint8, bytes32, bytes32) internal returns (address) => NONDET;
+    function ECDSA.parse(bytes memory) internal returns (uint8, bytes32, bytes32) => NONDET;
+    function ECDSA.parseCalldata(bytes calldata) internal returns (uint8, bytes32, bytes32) => NONDET;
+
+    // SignatureChecker internal functions => NONDET
+    function SignatureChecker.isValidSignatureNow(address, bytes32, bytes memory) internal returns (bool) => NONDET;
+    function SignatureChecker.isValidSignatureNowCalldata(address, bytes32, bytes calldata) internal returns (bool) => NONDET;
+    function SignatureChecker.isValidERC1271SignatureNow(address, bytes32, bytes memory) internal returns (bool) => NONDET;
+    function SignatureChecker.isValidSignatureNow(bytes memory, bytes32, bytes memory) internal returns (bool) => NONDET;
+    function SignatureChecker.areValidSignaturesNow(bytes32, bytes[] memory, bytes[] memory) internal returns (bool) => NONDET;
+    function IntentConsumer._verifyAndConsumeIntent(address signer, bytes32 intentHash, uint256 nonce, uint256 deadline, bytes calldata signature) internal => NONDET;
+
+    // ERC20Upgradeable internal functions summary 
+    function TokenizationSpokeInstance.totalSupply() internal returns (uint256) => totalSupplyGhost;
+    
+    function TokenizationSpokeInstance.balanceOf(address account) internal returns (uint256) => 
+            tokenBalanceOf(currentContract, account);
+
+    function TokenizationSpokeInstance.transfer(address to, uint256 amount) internal returns (bool) with (env e) => 
+            transferCVL(currentContract, e.msg.sender, to, amount);
+    
+    function TokenizationSpokeInstance.transferFrom(address from, address to, uint256 amount) internal returns (bool) with (env e) => 
+        transferFromCVL(currentContract, e.msg.sender, from, to, amount);
+    
+    function ERC20Upgradeable._mint(address account, uint256 value) internal => mintCVL(account, value);
+    
+    function ERC20Upgradeable._burn(address account, uint256 value) internal => burnCVL(account, value);
+}
+
+
+////////////////////////////////////////////////////////////////////////////
+//                              Functions                                 //
+////////////////////////////////////////////////////////////////////////////
+
+
+
+function mintCVL(address account, uint256 value) {
+    totalSupplyGhost = require_uint256(totalSupplyGhost + value);
+    balanceByToken[currentContract][account] = require_uint256(balanceByToken[currentContract][account] + value);
+}
+
+function burnCVL(address account, uint256 value) {
+    totalSupplyGhost = require_uint256(totalSupplyGhost - value);
+    balanceByToken[currentContract][account] = require_uint256(balanceByToken[currentContract][account] - value);
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////
+//                              GHOSTS                                    //
+////////////////////////////////////////////////////////////////////////////
+
+ghost uint256 totalSupplyGhost {
+    init_state axiom totalSupplyGhost == 0;
+}
+
+// RAY constant (10^27) used in WadRayMath
+ghost uint256 RAY {
+    axiom RAY == 10^27;
+}
+
+////////////////////////////////////////////////////////////////////////////
+//                              DEFINITIONS                               //
+////////////////////////////////////////////////////////////////////////////
+
+// Helper to check if a method is out of scope
+definition outOfScopeFunctions(method f) returns bool = 
+    f.selector == sig:TokenizationSpokeInstance.initialize(string,string).selector ||
+    f.selector == sig:TokenizationSpokeInstance.permit(address,address,uint256,uint256,uint8,bytes32,bytes32).selector ||
+    f.selector == sig:TokenizationSpokeInstance.depositWithPermit(uint256,address,uint256,uint8,bytes32,bytes32).selector ||
+    f.selector == sig:TokenizationSpokeInstance.usePermitNonce().selector ||
+    f.selector == sig:TokenizationSpokeInstance.renounceAllowance(address).selector;
+
+////////////////////////////////////////////////////////////////////////////
+//                                 RULES                                  //
+////////////////////////////////////////////////////////////////////////////
+
+invariant totalSupplySumOfBalances()
+     totalSupply() == (usum address a. balanceByToken[currentContract][a]);
+    
+
+/**
+total assets is at least as much as total supply of shares
+**/ 
+
+rule totalAssetsIsAtLeastAsMuchAsTotalSupplyOfShares(env e) {
+    setup();
+    assert totalAssets(e) >= totalSupply();
+    assert totalSupply() == 0 <=> totalAssets(e) == 0;
+}
+
+
+/**
+ * @title convertToShares and convertToAssets are inverse operations
+ * @notice Verifies ERC4626 requirement: convertToAssets(convertToShares(assets)) == assets (within rounding)
+ * @link_property ERC4626 compliance
+ */
+rule convertToSharesAndAssetsInverse(uint256 assets) {
+    env e;
+    uint256 shares = convertToShares(e, assets);
+    uint256 assetsBack = convertToAssets(e, shares);
+    
+    // Due to rounding, assetsBack may be slightly less than assets
+    // But it should never be more than assets
+    assert assetsBack <= assets;
+    // And the difference should be minimal (within 1 wei per share)
+    assert assets - assetsBack <=  previewAddBySharesCVL(tokenizationSpoke.assetId(e), 1, e);
+}
+
+/**
+ * @title convertToAssets and convertToShares are inverse operations
+ * @notice Verifies ERC4626 requirement: convertToShares(convertToAssets(shares)) == shares (within rounding)
+ * @link_property ERC4626 compliance
+ */
+rule convertToAssetsAndSharesInverse(uint256 shares) {
+    env e;
+    uint256 assets = convertToAssets(e, shares);
+    uint256 sharesBack = convertToShares(e, assets);
+    
+    // Due to rounding, sharesBack may be slightly less than shares
+    // But it should never be more than shares
+    assert sharesBack <= shares;
+    // And the difference should be minimal (within 1 share)
+    assert shares - sharesBack <= 1;
+}
+
+/**
+ * @title previewDeposit matches convertToShares
+ * @notice Verifies that previewDeposit returns the same value as convertToShares
+ * @link_property ERC4626 compliance
+ */
+rule previewDepositMatchesConvertToShares(uint256 assets) {
+    env e;
+    uint256 previewShares = previewDeposit(e, assets);
+    uint256 convertShares = convertToShares(e, assets);
+    
+    assert previewShares == convertShares;
+}
+
+/**
+ * @title previewMint matches convertToAssets
+ * @notice Verifies that previewMint returns the same value as convertToAssets
+ * @link_property ERC4626 compliance
+ */
+rule previewMintMatchesConvertToAssets(uint256 shares) {
+    env e;
+    uint256 previewAssets = previewMint(e, shares);
+    uint256 previewAssetsMax = previewMint(e, require_uint256(shares+1));
+    uint256 convertAssets = convertToAssets(e, shares);
+    
+    assert previewAssets >= convertAssets && previewAssets <= previewAssetsMax;
+}
+
+/**
+ * @title previewWithdraw matches convertToShares
+ * @notice Verifies that previewWithdraw returns the same value as convertToShares
+ * @link_property ERC4626 compliance
+ */
+rule previewWithdrawMatchesConvertToShares(uint256 assets) {
+    env e;
+    uint256 previewShares = previewWithdraw(e, assets);
+    uint256 convertShares = convertToShares(e, assets);
+    
+    assert previewShares >= convertShares;
+    assert previewShares <= convertShares + 1;
+}
+
+/**
+ * @title previewRedeem matches convertToAssets
+ * @notice Verifies that previewRedeem returns the same value as convertToAssets
+ * @link_property ERC4626 compliance
+ */
+rule previewRedeemMatchesConvertToAssets(uint256 shares) {
+    env e;
+    uint256 previewAssets = previewRedeem(e, shares);
+    uint256 convertAssets = convertToAssets(e, shares);
+    
+    assert previewAssets == convertAssets;
+}
+
+/**
+ * @title totalAssets consistency
+ * @notice Verifies that totalAssets is consistent (equals previewRedeem(totalSupply()))
+ * @link_property State integrity
+ */
+rule totalAssets_equalsHubBalance {
+    env e;
+    uint256 totalAssets = totalAssets(e);
+    uint256 totalSupply = totalSupply(e);
+    uint256 previewRedeemTotal = previewRedeem(e, totalSupply);
+    
+    // totalAssets should equal previewRedeem(totalSupply()) per ERC4626
+    assert totalAssets == previewRedeemTotal;
+}
+
+
+/**
+ * @title Deposit increases receiver's share balance
+ * @notice Verifies that deposit operation increases the receiver's share balance and transfers assets
+ * @link_property TokenizationSpoke integrity
+ */
+rule deposit_integrity(uint256 assets, address receiver) {
+    env e;
+    setup();
+    address asset = asset();
+    uint256 sharesBefore = balanceOf(receiver);
+    uint256 depositorBalanceBefore = tokenBalanceOf(asset, e.msg.sender);
+    uint256 sharesExpected = previewDeposit(e, assets);
+    uint256 maxDeposit = maxDeposit(e, e.msg.sender);
+    
+    uint256 sharesReceived = deposit(e, assets, receiver);
+    
+    uint256 sharesAfter = balanceOf(receiver);
+    uint256 depositorBalanceAfter = tokenBalanceOf(asset, e.msg.sender);
+    
+    assert sharesReceived <= maxDeposit;
+    assert sharesAfter == sharesBefore + sharesReceived;
+    assert sharesReceived == sharesExpected;
+    assert e.msg.sender != hub() => depositorBalanceAfter == depositorBalanceBefore - assets;
+}
+
+rule zeroDepositZeroShares(uint assets, address receiver)
+{
+    env e;
+    
+    uint shares = deposit(e,assets, receiver);
+
+    assert shares == 0 <=> assets == 0;
+}
+/**
+ * @title Mint increases receiver's share balance
+ * @notice Verifies that mint operation increases the receiver's share balance and transfers assets
+ * @link_property TokenizationSpoke integrity
+ */
+rule mint_integrity(uint256 shares, address receiver) {
+    env e;
+    setup();
+    address asset = asset();
+    uint256 sharesBefore = balanceOf(receiver);
+    uint256 depositorBalanceBefore = tokenBalanceOf(asset, e.msg.sender);
+    uint256 assetsExpected = previewMint(e, shares);
+    uint256 maxMint = maxMint(e, receiver);
+
+    uint256 assetsDeposited = mint(e, shares, receiver);
+    
+    uint256 sharesAfter = balanceOf(receiver);
+    uint256 depositorBalanceAfter = tokenBalanceOf(asset, e.msg.sender);
+
+    assert assetsDeposited <= maxMint;
+    assert assetsDeposited == assetsExpected;
+    assert sharesAfter == sharesBefore + shares;
+    assert e.msg.sender != hub() => depositorBalanceAfter == depositorBalanceBefore - assetsDeposited;
+}
+
+/**
+ * @title Withdraw decreases owner's share balance
+ * @notice Verifies that withdraw operation decreases the owner's share balance and transfers assets
+ * @link_property TokenizationSpoke integrity
+ */
+rule withdraw_integrity(uint256 assets, address receiver, address owner) {
+    env e;
+    setup();
+    address asset = asset();
+    uint256 sharesBefore = balanceOf(owner);
+    uint256 receiverBalanceBefore = tokenBalanceOf(asset, receiver);
+    
+    uint256 sharesExpected = previewWithdraw(e, assets);
+    uint256 sharesWithdrawn = withdraw(e, assets, receiver, owner);
+    
+    uint256 sharesAfter = balanceOf(owner);
+    uint256 receiverBalanceAfter = tokenBalanceOf(asset, receiver);
+    
+    assert sharesAfter == sharesBefore - sharesWithdrawn;
+    assert sharesWithdrawn == sharesExpected;
+    assert receiver != hub() => receiverBalanceAfter == receiverBalanceBefore + assets;
+}
+
+/**
+ * @title Redeem decreases owner's share balance
+ * @notice Verifies that redeem operation decreases the owner's share balance and transfers assets
+ * @link_property TokenizationSpoke integrity
+ */
+rule redeem_integrity(uint256 shares, address receiver, address owner) {
+    env e;
+    setup();
+    address asset = asset();
+    uint256 sharesBefore = balanceOf(owner);
+    uint256 receiverBalanceBefore = tokenBalanceOf(asset, receiver);
+    
+    uint256 assets = convertToAssets(e, shares);
+    uint256 assetsRedeemed = redeem(e, shares, receiver, owner);
+
+    
+    uint256 sharesAfter = balanceOf(owner);
+    uint256 receiverBalanceAfter = tokenBalanceOf(asset, receiver);
+    
+    assert sharesAfter == sharesBefore - shares;
+    assert receiver != hub() => receiverBalanceAfter == receiverBalanceBefore + assetsRedeemed;
+    assert assetsRedeemed == assets;
+}
+
+rule redeemingAllValidity() { 
+    address owner;
+    address receiver;
+    uint256 shares; require shares == balanceOf(owner);
+    
+    env e;
+    setup();
+    redeem(e, shares, receiver, owner);
+    uint256 ownerBalanceAfter = balanceOf(owner);
+    assert ownerBalanceAfter == 0;
+}
+
+/**
+ * @title Can only increase other users' share balance, not decrease it
+ * @notice Verifies that deposit operation only affects the receiver's share balance, not other users
+ * @link_property TokenizationSpoke integrity
+ */
+definition WithSigFunctions(method f) returns bool = f.selector == sig:depositWithSig(ITokenizationSpoke.TokenizedDeposit, bytes).selector || f.selector == sig:mintWithSig(ITokenizationSpoke.TokenizedMint, bytes).selector || f.selector == sig:withdrawWithSig(ITokenizationSpoke.TokenizedWithdraw, bytes).selector || f.selector == sig:redeemWithSig(ITokenizationSpoke.TokenizedRedeem, bytes).selector;
+
+rule onlyIncreaseOtherUsersShares(address otherUser, method f) filtered { f -> !f.isView && !WithSigFunctions(f)} {
+    env e;
+    setup();
+    require e.msg.sender != otherUser;
+    require otherUser != currentContract.HUB;
+
+    uint256 otherUserSharesBefore = balanceOf(otherUser);
+    uint256 assetsBalanceBefore = tokenBalanceOf(asset(), otherUser);
+    
+    callFunctions(e, otherUser, f);
+    
+    uint256 otherUserSharesAfter = balanceOf(otherUser);
+    uint256 assetsBalanceAfter = tokenBalanceOf(asset(), otherUser);
+
+    assert otherUserSharesAfter >= otherUserSharesBefore;
+    assert assetsBalanceAfter >= assetsBalanceBefore;
+}
+
+function callFunctions(env e, address otherUser, method f) {
+    uint256 assets;
+    uint256 shares;
+    address owner;
+    calldataarg args;
+    address receiver; 
+    require owner != otherUser;
+    if (f.selector == sig:deposit(uint256, address).selector) {
+        deposit(e, assets, receiver);
+    } else if (f.selector == sig:mint(uint256, address).selector) {
+        mint(e, shares, receiver);
+    } else if (f.selector == sig:withdraw(uint256, address, address).selector) {
+        withdraw(e, assets, receiver, owner);
+    } else if (f.selector == sig:redeem(uint256, address, address).selector) {
+        redeem(e, shares, receiver, owner);
+    } else if (f.selector == sig:transferFrom(address, address, uint256).selector) {
+        address from; require from != otherUser;
+        address to; 
+        uint256 amount;
+        transferFrom(e, from, to, amount);
+    } else {
+        f(e,args);
+    }
+}
+/**
+ * @title maxWithdraw respects user balance and total assets
+ * @notice Verifies that maxWithdraw is bounded by user's share balance and total assets
+ * @link_property TokenizationSpoke integrity
+ */
+rule maxWithdraw_respectsLiquidity(address owner, env e) {
+    assert maxWithdraw(e, owner) <=  previewRedeem(e, balanceOf(owner)) &&
+    maxRedeem(e, owner) <= balanceOf(owner);
+}
+
+/**
+ * @title maxDeposit and maxMint respect user balance and total assets
+ * @notice Verifies that maxRedeem is bounded by user's share balance and total assets
+ * @link_property TokenizationSpoke integrity
+ */
+invariant maxDeposit_and_maxMint_respectsLiquidity(address owner, env e) 
+    (maxDeposit(e, owner) == max_uint256  || 
+     previewRemoveBySharesCVL(tokenizationSpoke.assetId(e), balanceOf(owner), e) <= maxDeposit(e, owner) ) &&
+    (maxMint(e, owner) == max_uint256  ||  balanceOf(owner) <= maxMint(e, owner) ) {
+        preserved with (env e1) {
+            setup();
+        }
+    }
+
+
+
+rule convertToAssetsWeakAdditivity() {
+    env e;
+    uint256 sharesA; uint256 sharesB;
+    require sharesA + sharesB < max_uint128
+         && convertToAssets(e, sharesA) + convertToAssets(e, sharesB) < max_uint256
+         && convertToAssets(e, require_uint256(sharesA + sharesB)) < max_uint256;
+    assert convertToAssets(e, sharesA) + convertToAssets(e, sharesB) <= convertToAssets(e, require_uint256(sharesA + sharesB)),
+        "converting sharesA and sharesB to assets then summing them must yield a smaller or equal result to summing them then converting";
+}
+
+rule convertToSharesWeakAdditivity() {
+    env e;
+    uint256 assetsA; uint256 assetsB;
+    require assetsA + assetsB < max_uint128
+         && convertToShares(e, assetsA) + convertToShares(e, assetsB) < max_uint256
+         && convertToShares(e, require_uint256(assetsA + assetsB)) < max_uint256;
+    assert convertToShares(e, assetsA) + convertToShares(e, assetsB) <= convertToShares(e, require_uint256(assetsA + assetsB)),
+        "converting assetsA and assetsB to shares then summing them must yield a smaller or equal result to summing them then converting";
+}
+
+rule conversionWeakMonotonicity {
+    env e;
+    uint256 smallerShares; uint256 largerShares;
+    uint256 smallerAssets; uint256 largerAssets;
+
+    assert smallerShares < largerShares => convertToAssets(e, smallerShares) <= convertToAssets(e, largerShares),
+        "converting more shares must yield equal or greater assets";
+    assert smallerAssets < largerAssets => convertToShares(e, smallerAssets) <= convertToShares(e, largerAssets),
+        "converting more assets must yield equal or greater shares";
+}
+
+rule conversionWeakIntegrity() {
+    env e;
+    uint256 sharesOrAssets;
+    assert convertToShares(e, convertToAssets(e, sharesOrAssets)) <= sharesOrAssets,
+        "converting shares to assets then back to shares must return shares less than or equal to the original amount";
+    assert convertToAssets(e, convertToShares(e, sharesOrAssets)) <= sharesOrAssets,
+        "converting assets to shares then back to assets must return assets less than or equal to the original amount";
+}
+
+rule convertToCorrectness(uint256 amount, uint256 shares)
+{
+    env e;
+    assert amount >= convertToAssets(e, convertToShares(e, amount));
+    assert shares >= convertToShares(e, convertToAssets(e, shares));
+}
+
+
+
+rule dustFavorsTheHouse(uint assetsIn )
+{
+    env e;
+        
+    require e.msg.sender != currentContract;
+    setup();
+    uint256 totalSupplyBefore = totalSupply();
+
+    uint balanceBefore = totalAssets(e);
+
+    uint shares = deposit(e,assetsIn, e.msg.sender);
+    uint assetsOut = redeem(e,shares,e.msg.sender,e.msg.sender);
+
+    uint balanceAfter = totalAssets(e);
+
+    assert balanceAfter >= balanceBefore;
+}
+
+function setup() {
+    requireInvariant totalSupplySumOfBalances();
+    //assuming that the assetUnderlying is not the current contract itself
+    require currentContract.ASSET != currentContract;
+    // HUB._assets[ASSET_ID].underlying == TokenizationSpoke.asset()!= address(this)
+    require assetUnderlying[currentContract.ASSET_ID] == currentContract.ASSET;
+}
