@@ -35,6 +35,9 @@ env:
     certora/conf/SpokeWithHub.conf --rule userPremiumOffsetConsistency 
     certora/conf/SpokeWithHub.conf --rule userSuppliedShareConsistency
     certora/conf/SpokeWithHub.conf --exclude_rule userDrawnShareConsistency userPremiumShareConsistency userPremiumOffsetConsistency  userSuppliedShareConsistency
+    certora/conf/TokenizationSpoke.conf --exclude_rule mint_integrity
+    certora/conf/TokenizationSpoke.conf --rule mint_integrity --prover_args "  -destructiveOptimizations twostage -mediumTimeout 20 -lowTimeout 20 -tinyTimeout 20 -depth 20" 
+    certora/conf/TokenizationSpokeSymbolicHub.conf
     #########                                                           #########
     ######### rules that are too long/flaky to run in ci, run manually  #########
     #########                                                           #########
