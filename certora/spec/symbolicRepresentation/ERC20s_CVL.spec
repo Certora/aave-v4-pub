@@ -38,10 +38,7 @@ methods {
 
 /// CVL simple implementations of IERC20:
 /// token => account => balance
-ghost mapping(address => mapping(address => uint256)) balanceByToken {
-    init_state axiom forall address token. forall address account. balanceByToken[token][account] == 0;
-    init_state axiom forall address token. (usum address account. balanceByToken[token][account]) == 0;
- }
+ghost mapping(address => mapping(address => uint256)) balanceByToken;
 /// token => owner => spender => allowance
 ghost mapping(address => mapping(address => mapping(address => uint256))) allowanceByToken;
 

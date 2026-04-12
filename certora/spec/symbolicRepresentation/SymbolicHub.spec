@@ -15,9 +15,6 @@ methods {
 
     function _.getAssetDrawnIndex(uint256 assetId) external with (env e) => getAssetDrawnIndexCVL(assetId, e) expect uint256;
 
-    function _.getSpokeConfig(uint256 assetId, address spokeAddress) external => getSpokeConfigCVL(assetId,       spokeAddress) expect IHub.SpokeConfig;
-
-
 // Supply Operations
     function _.add(uint256 assetId, uint256 amount) external with (env e) => addSummaryCVL(assetId, amount, e) expect uint256;
 // Withdraw Operations  
@@ -59,20 +56,6 @@ persistent ghost mapping(uint256 /*assetId */ => mapping(uint256 /*blockTimestam
 ghost mapping(uint256 /*assetId*/ => address /*underlying*/) assetUnderlying;
 
 ghost mapping(uint256 /*assetId*/ => uint8 /*decimals*/) assetDecimals;
-
-ghost mapping(uint256 /*assetId*/ => mapping(address /*spokeAddress*/ => uint40 /*spokeConfig.addCap*/)) spokeConfig_addCap;
-ghost mapping(uint256 /*assetId*/ => mapping(address /*spokeAddress*/ => uint40 /*spokeConfig.drawCap*/)) spokeConfig_drawCap;
-ghost mapping(uint256 /*assetId*/ => mapping(address /*spokeAddress*/ => bool /*spokeConfig.active*/)) spokeConfig_active;
-ghost mapping(uint256 /*assetId*/ => mapping(address /*spokeAddress*/ => bool /*spokeConfig.halted*/)) spokeConfig_halted;
-
-function getSpokeConfigCVL(uint256 assetId, address spokeAddress) returns (IHub.SpokeConfig) {
-    IHub.SpokeConfig result;
-    require result.addCap == spokeConfig_addCap[assetId][spokeAddress];
-    require result.drawCap == spokeConfig_drawCap[assetId][spokeAddress];
-    require result.active == spokeConfig_active[assetId][spokeAddress];
-    require result.halted == spokeConfig_halted[assetId][spokeAddress];
-    return result;
-}
 
 function getAssetUnderlyingAndDecimalsCVL(uint256 assetId) returns (address, uint8) {
     return (assetUnderlying[assetId], assetDecimals[assetId]);

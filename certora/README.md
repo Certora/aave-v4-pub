@@ -14,7 +14,8 @@ certora/
 │   ├── LibBitHarness.sol   # LibBit library harness
 │   ├── LiquidationLogicHarness.sol  # LiquidationLogic library harness
 │   ├── MathWrapper.sol     # Math library wrapper for verification
-│   └── PremiumWrapper.sol  # Premium library wrapper for verification
+│   ├── PremiumWrapper.sol  # Premium library wrapper for verification
+│   └── SpokeUtilsHarness.sol # SpokeUtils library harness
 ├── spec/                    # CVL specification files
 │   ├── libs/               # Library specifications
 │   └── symbolicRepresentation/  # Symbolic representations for CVL
@@ -349,6 +350,27 @@ For more information on the Certora Prover and CVL specification language, see:
   - `moreThanOneCollateral_noReportDeficit` - No deficit reported when multiple collaterals exist
   - `noChangeToOtherAccounts_liquidationCall` - Liquidation doesn't affect uninvolved accounts
 
+### `LiquidationIntegrity.spec`
+
+**Liquidation amount verification against actual state changes.**
+
+- **Config:** `certora/conf/LiquidationIntegrity.conf`
+- **Imports:** `Liquidation.spec`
+- **Purpose:** Verifies that amounts returned by `calculateLiquidationAmounts` match the actual position changes after liquidation
+- **Key Rules:**
+  - `liquidationIntegrity` - Drawn shares, premium debt, and collateral shares change by exactly the calculated amounts; deficit path zeroes all debt
+
+### `LiquidationReportDeficit.spec`
+
+**Deficit reporting condition verification.**
+
+- **Config:** `certora/conf/LiquidationReportDeficit.conf`
+- **Imports:** `SpokeHealthFactor.spec`
+- **Purpose:** Verifies the conditions under which deficit is reported during liquidation
+- **Key Rules:**
+  - `moreThanOneCollateral_noReportDeficit` - If user has additional collateral value on the position beyond the seized amount, deficit is not reported
+  - `moreCollateralThenDebt_noReportDeficit` - If total collateral value exceeds total debt value, deficit is not reported
+
 ### `LiquidationUserIntegrity.spec`
 
 **Liquidation user isolation verification.**
@@ -435,6 +457,17 @@ For more information on the Certora Prover and CVL specification language, see:
 - **Harness:** `SpokeHarness.sol`
 - **Purpose:** Verifies `_processUserAccountData` function properties
 
+### `libs/LiquidationLogic_debtToLiquidate.spec`
+
+**Debt-to-liquidate calculation verification.**
+
+- **Config:** `certora/conf/libs/LiquidationLogic_debtToLiquidate.conf`
+- **Harness:** `LiquidationLogicHarness.sol`
+- **Purpose:** Verifies `calculateDebtToLiquidate` function properties, ensuring correct handling of drawn shares and premium debt
+- **Key Rules:**
+  - `debtToLiquidateNotExceedBalance` - Debt to liquidate does not exceed the user's balances
+  - `premiumDebtLiquidatedFirst` - Premium debt is fully liquidated before any drawn shares are liquidated
+
 ### `libs/LibBit.spec`
 
 **Bit manipulation library verification.**
@@ -456,6 +489,16 @@ For more information on the Certora Prover and CVL specification language, see:
 - **Purpose:** Verifies that `Premium.calculatePremiumRay` matches its CVL summarization
 - **Key Rules:**
   - `calculatePremiumRay_equivalence` - Solidity matches CVL implementation
+
+### `libs/SpokeUtils_toValue.spec`
+
+**SpokeUtils value conversion verification.**
+
+- **Config:** `certora/conf/libs/SpokeUtils_toValue.conf`
+- **Harness:** `SpokeUtilsHarness.sol`
+- **Purpose:** Verifies functional equivalence between the Solidity `toValue` implementation and its CVL representation
+- **Key Rules:**
+  - `checkToValueEquivalence` - Solidity `toValue` implementation matches `toValueCVL` for valid input ranges
 
 ---
 
@@ -605,6 +648,12 @@ Wraps Spoke functions for verification:
 
 - Exposes `_calculateDebtToTargetHealthFactor()` for debt calculation verification
 - Exposes `_processUserAccountData()` for account data processing verification
+
+### `SpokeUtilsHarness.sol`
+
+Wraps SpokeUtils library for verification:
+
+- Exposes `toValue()` for asset-to-value conversion equivalence testing
 
 ---
 
