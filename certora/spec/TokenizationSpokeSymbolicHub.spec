@@ -1,6 +1,7 @@
 /**
  * @title TokenizationSpoke Contract Specification
  * @notice Verify TokenizationSpokeInstance with a symbolic representation of the Hub
+ * Rules that are complex to prove with a linked Hub.
  *
  * To run this spec:
  * certoraRun certora/conf/TokenizationSpokeSymbolicHub.conf

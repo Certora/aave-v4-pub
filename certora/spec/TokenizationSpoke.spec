@@ -46,7 +46,7 @@ use invariant totalSupplySumOfBalances;
 
 /**
  * @title Vault total supply matches hub recorded spoke added shares
- * @link_property TokenizationSpoke valid state
+ * @link_property TokenizationSpoke - Hub integrity
  */
 invariant totalSupplyHubSupplySharesIntegrity()
     totalSupply() == hub.getSpokeAddedShares(currentContract.ASSET_ID, currentContract)
@@ -222,14 +222,12 @@ rule mint_integrity(uint256 shares, address receiver) {
     uint256 sharesBefore = balanceOf(receiver);
     uint256 depositorBalanceBefore = tokenBalanceOf(asset, e.msg.sender);
     uint256 assetsExpected = previewMint(e, shares);
-    uint256 maxMint = maxMint(e, receiver);
 
     uint256 assetsDeposited = mint(e, shares, receiver);
     
     uint256 sharesAfter = balanceOf(receiver);
     uint256 depositorBalanceAfter = tokenBalanceOf(asset, e.msg.sender);
 
-    assert shares <= maxMint;
     assert assetsDeposited == assetsExpected;
     assert sharesAfter == sharesBefore + shares;
     assert e.msg.sender != hub => depositorBalanceAfter == depositorBalanceBefore - assetsDeposited;
@@ -358,6 +356,53 @@ rule maxWithdraw_respectsLiquidity(address owner, env e) {
         maxRedeem(e, owner) <= balanceOf(owner);
 }
 
+/** 
+* @title mint respects maxMint
+* @notice mint is bounded by maxMint
+* @link_property TokenizationSpoke bounds integrity
+*/
+rule mintRespectsMaxMint(uint256 shares, address receiver, env e) {
+    setup(e);
+    uint256 maxMint = maxMint(e, receiver);
+    mint(e, shares, receiver);
+    assert shares <= maxMint;
+}
+
+/**
+* @title withdraw respects maxWithdraw
+* @notice withdraw is bounded by maxWithdraw
+* @link_property TokenizationSpoke bounds integrity
+*/
+rule withdrawRespectsMaxWithdraw(uint256 assets, address receiver, address owner, env e) {
+    setup(e);
+    uint256 maxWithdraw = maxWithdraw(e, owner);
+    withdraw(e, assets, receiver, owner);
+    assert assets <= maxWithdraw;
+}
+
+/**
+* @title deposit respects maxDeposit
+* @notice deposit is bounded by maxDeposit
+* @link_property TokenizationSpoke bounds integrity
+*/
+rule depositRespectsMaxDeposit(uint256 assets, address receiver, env e) {
+    setup(e);
+    uint256 maxDeposit = maxDeposit(e, receiver);
+    deposit(e, assets, receiver);
+    assert assets <= maxDeposit;
+}
+
+/**
+* @title redeem respects maxRedeem
+* @notice redeem is bounded by maxRedeem
+* @link_property TokenizationSpoke bounds integrity
+*/
+rule redeemRespectsMaxRedeem(uint256 shares, address receiver, address owner, env e) {
+    setup(e);
+    uint256 maxRedeem = maxRedeem(e, owner);
+    redeem(e, shares, receiver, owner);
+    assert shares <= maxRedeem;
+}
 
 /**
  * @title convertToAssets is subadditive over share sums (weak additivity)
@@ -440,16 +485,25 @@ rule assetIsThisContract(method f) filtered { f -> !f.isView && !outOfScopeFunct
     assert totalSupply() == 0;
 }
 
+
+
 function setup(env e) {
     requireInvariant totalSupplySumOfBalances();
+    requireInvariant totalSupplyHubSupplySharesIntegrity();
+
     // Assuming the asset underlying is not the current contract itself
+    // based on the rule assetIsThisContract
     require currentContract.ASSET != currentContract;
     // HUB._assets[ASSET_ID].underlying == TokenizationSpoke.asset()!= address(this)
+    
+    // correlated with hub values
     address underlying; uint8 decimals;
     (underlying, decimals) = hub.getAssetUnderlyingAndDecimals(currentContract.ASSET_ID);
     require underlying == currentContract.ASSET;
     require currentContract.ASSET_UNITS == limitedExp(10,decimals);
     require currentContract.MAX_ALLOWED_SPOKE_CAP == hub.MAX_ALLOWED_SPOKE_CAP();
+    
+    // apply all hub invariants
     requireAllInvariants(currentContract.ASSET_ID, e);
-    requireInvariant totalSupplyHubSupplySharesIntegrity();
+
 }

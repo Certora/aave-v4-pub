@@ -330,7 +330,6 @@ For more information on the Certora Prover and CVL specification language, see:
   - `userPremiumOffsetConsistency` - Premium offset consistency
   - `underlyingAssetConsistency` - Underlying asset matches Hub asset
 
----
 
 ## Liquidation Specifications
 
@@ -380,6 +379,39 @@ For more information on the Certora Prover and CVL specification language, see:
 - **Purpose:** Verifies that liquidation only affects the liquidated user
 - **Key Rules:**
   - `onlyOneUserDebtChanges_liquidationCall` - Only liquidated user's debt changes
+
+---
+
+
+### `TokenizationSpokeBase.spec`
+
+**Shared CVL layer for TokenizationSpoke (ERC4626 vault) specs.**
+
+- **Imports:** None — load `symbolicRepresentation/ERC20s_CVL.spec` **before** this file so `tokenBalanceOf`, `transferCVL`, etc. are in scope.
+- **Purpose:** Shared `methods` block (ECDSA / `SignatureChecker` / `IntentConsumer` → `NONDET`; ERC20 internals → `totalSupplyGhost` + `ERC20s_CVL`); `mintCVL` / `burnCVL`; `outOfScopeFunctions`; invariant `totalSupplySumOfBalances` (total ERC20 supply equals sum of ghost balances).
+- **Using:** Importing specs declare `using TokenizationSpokeInstance as tokenizationSpoke`.
+
+### `TokenizationSpoke.spec`
+
+**TokenizationSpoke as an ERC4626-style vault against a linked Hub.**
+
+- **Config:** `certora/conf/TokenizationSpoke.conf` — verifies `TokenizationSpokeInstance` with **`TokenizationSpokeInstance:HUB=HubInstance`** and `HubInstance.sol` in the build.
+- **Imports:** `ERC20s_CVL.spec`, `TokenizationSpokeBase.spec`, `HubValidState.spec`
+- **Purpose:** Conversion and preview consistency, `totalAssets` / supply relationships, deposit / mint / withdraw / redeem integrity, third-party non-decrease (`onlyIncreaseOtherUsersShares`), `maxWithdraw` / `maxRedeem` bounds, convert weak monotonicity and additivity, and a zero-supply edge case (`assetIsThisContract`).
+- **Key Rules:** :
+ -`totalSupplyHubSupplySharesIntegrity` - (vault supply matches hub `getSpokeAddedShares` for this asset and spoke).
+
+
+
+### `TokenizationSpokeSymbolicHub.spec`
+
+**Same vault with `symbolicRepresentation/SymbolicHub.spec` instead of a linked `HubInstance`.**
+
+- **Config:** `certora/conf/TokenizationSpokeSymbolicHub.conf`
+- **Imports:** `ERC20s_CVL.spec`, `TokenizationSpokeBase.spec`, `SymbolicHub.spec`
+- **Purpose:** Abstract hub for faster or more flexible runs. Checks for frontrunning withdraw and redeem
+- **Key Rules:**
+    - `dustFavorsTheHouse`- totalAssets after deposit+redeem is at least totalAssets before (rounding favors vault)
 
 ---
 
@@ -503,9 +535,9 @@ For more information on the Certora Prover and CVL specification language, see:
 
 ### `symbolicRepresentation/SymbolicHub.spec`
 
-**Symbolic Hub for Spoke verification.**
+**Symbolic Hub for Spoke and TokenizationSpoke verification.**
 
-- **Purpose:** Allows verifying Spoke independently of Hub implementation
+- **Purpose:** Allows verifying Spoke (and `TokenizationSpokeSymbolicHub.spec`) independently of the concrete Hub implementation
 - **Key Features:**
   - Ghost mappings for asset indices per block
   - CVL implementations of Hub functions (add, remove, draw, restore, etc.)
@@ -577,7 +609,7 @@ common.spec
 symbolicRepresentation/
     ├── Math_CVL.spec (used by most specs)
     ├── ERC20s_CVL.spec (used by most specs)
-    ├── SymbolicHub.spec (used by Spoke specs)
+    ├── SymbolicHub.spec (used by Spoke specs and TokenizationSpokeSymbolicHub.spec)
     ├── SymbolicPositionStatus.spec (used by Spoke specs)
     └── VerifySymbolicPositionStatus.spec
 
