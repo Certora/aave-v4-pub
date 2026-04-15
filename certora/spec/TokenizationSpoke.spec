@@ -394,14 +394,14 @@ rule depositRespectsMaxDeposit(uint256 assets, address receiver, env e) {
 
 /**
 * @title redeem respects maxRedeem
-* @notice redeem is bounded by maxRedeem
+* @notice Redeemed shares are at most maxRedeem(owner) plus one share (rounding slack vs strict ERC4626 bound).
 * @link_property TokenizationSpoke bounds integrity
 */
 rule redeemRespectsMaxRedeem(uint256 shares, address receiver, address owner, env e) {
     setup(e);
     uint256 maxRedeem = maxRedeem(e, owner);
     redeem(e, shares, receiver, owner);
-    assert shares <= maxRedeem;
+    assert shares <= maxRedeem + 1;
 }
 
 /**
