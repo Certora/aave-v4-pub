@@ -94,4 +94,10 @@ definition outOfScopeFunctions(method f) returns bool =
  * @link_property TokenizationSpoke valid state
  */
 invariant totalSupplySumOfBalances()
-    totalSupply() == (usum address a. balanceByToken[currentContract][a]);
+    totalSupply() == (usum address a. balanceByToken[currentContract][a])
+{
+    //safely assumed every address has a balance of 0 at construction
+    preserved constructor() with (env e) {
+        require (usum address a. balanceByToken[currentContract][a]) == 0;
+    }
+}
