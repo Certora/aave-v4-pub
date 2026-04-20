@@ -38,9 +38,11 @@ methods {
 
 /// CVL simple implementations of IERC20:
 /// token => account => balance
-ghost mapping(address => mapping(address => uint256)) balanceByToken;
+ghost mapping(address => mapping(address => uint256)) balanceByToken ;
+
+
 /// token => owner => spender => allowance
-ghost mapping(address => mapping(address => mapping(address => uint256))) allowanceByToken;
+ghost mapping(address => mapping(address => mapping(address => uint256))) allowanceByToken ;
 
 
 function tokenBalanceOf(address token, address account) returns uint256 {
