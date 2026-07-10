@@ -1,4 +1,4 @@
-name: Certora Prover Fast Rules only
+name: Certora Prover
 
 env:
   CONFIGS: |
