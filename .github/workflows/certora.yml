@@ -59,12 +59,17 @@ env:
      # https://prover.certora.com/output/3706259/952ddd6d0a974b239ddd9af2e64c1a49?anonymousKey=0bbcb4f8e6e43c9a8ffe8bede77e2e2824aea725 
     certora/conf/HubAdditivity.conf --rule reportDeficitAdditivity
      # https://prover.certora.com/output/3706259/1a00d9db46d341b4bef50f55d807f10e/?anonymousKey=bbec3f005f2227e5342f08c96f3118cc4c1697fc timed out
-    certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity
-     # https://prover.certora.com/output/3706259/cdf48e7647964f4283e454d004afd7cc/?anonymousKey=a195a320155d3ca3a110b73b8b967bcafd62ecd9 # timed out
-    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold
-    # https://prover.certora.com/output/3706259/5792df3b5b9c49f3be296c70dbb33477/?anonymousKey=cadd297ef8e27aa37ae6131630d1e9e528a76aa2 # timed out (repay, updateUserRiskPremium)
-    # https://prover.certora.com/output/3706259/550373c41a5d4c0483551d085c033340/?anonymousKey=b8410096da6b663486b6f3b05be533cc44d7de78 (repay rule)
-    # https://prover.certora.com/output/3706259/de1672dd18ce4c62b2cadfe947ed977c/?anonymousKey=632a58996aa03f1b6c739d08e7400ec0cec209b9 (updateUserRiskPremium rule)
+    certora/conf/HubAdditivity.conf --rule addAdditivity
+    certora/conf/HubAdditivity.conf --rule removeAdditivity
+    certora/conf/HubAdditivity.conf --exclude_rule drawAdditivity restoreAdditivity reportDeficitAdditivity addAdditivity removeAdditivity
+
+     # https://prover.certora.com/output/33050/eaa51ab02c8a44fca19e15c76997980e/?anonymousKey=6eaa6e06ae4ba1c643f3a76c8b52f5ea61e5426e # timed out methods split below
+    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold --method setUsingAsCollateral
+    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold --method updateUserRiskPremium
+    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold --method updateUserDynamicConfig
+    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold --method withdraw
+    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold --method repay
+    certora/conf/SpokeHealthFactor.conf --rule userHealthAboveThreshold --exclude_method setUsingAsCollateral updateUserRiskPremium updateUserDynamicConfig withdraw repay
     certora/conf/SpokeHealthFactor.conf --rule userHealthBelowThresholdCanOnlyIncreaseHealthFactor 
      # https://prover.certora.com/output/3706259/d58df7e6fb504be9a5d7208c3536af1d/?anonymousKey=4bbf8fc17b007c0eeda71e379577d3a0d6d74edd
     certora/conf/HubAccrueSupplyRate.conf --rule previewRemoveByShares_withoutAccrue_time_monotonic
