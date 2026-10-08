@@ -141,16 +141,28 @@ library AaveV4DeployBase {
     uint8 oracleDecimals,
     bytes32 salt
   ) internal returns (BatchReports.SpokeInstanceBatchReport memory) {
-    AaveV4BabylonSpokeInstanceBatch babylonSpokeInstanceBatch = new AaveV4BabylonSpokeInstanceBatch({
-        proxyAdminOwner_: proxyAdminOwner,
-        authority_: authority,
-        liquidationManager_: liquidationManager,
-        managedCollateralReserveId_: managedCollateralReserveId,
-        babylonSpokeBytecode_: babylonSpokeBytecode,
-        oracleDecimals_: oracleDecimals,
-        salt_: salt
-      });
-    return babylonSpokeInstanceBatch.getReport();
+    // the CREATE2 factory drops revert reasons, so repeat the batch's input checks here
+    require(oracleDecimals > 0, 'invalid oracle decimals');
+    require(proxyAdminOwner != address(0), 'invalid proxy admin owner');
+    require(authority != address(0), 'invalid authority');
+    require(liquidationManager != address(0), 'invalid liquidation manager');
+    // the batch deploys the AaveOracle, so its address must not depend on the deployer's nonce
+    address babylonSpokeInstanceBatch = Create2Utils.create2Deploy({
+      salt: salt,
+      bytecode: abi.encodePacked(
+        type(AaveV4BabylonSpokeInstanceBatch).creationCode,
+        abi.encode(
+          proxyAdminOwner,
+          authority,
+          liquidationManager,
+          managedCollateralReserveId,
+          babylonSpokeBytecode,
+          oracleDecimals,
+          salt
+        )
+      )
+    });
+    return AaveV4BabylonSpokeInstanceBatch(babylonSpokeInstanceBatch).getReport();
   }
 
   /// @notice Deploys the position manager batch containing all three position manager contracts.

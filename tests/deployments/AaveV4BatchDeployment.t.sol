@@ -60,6 +60,31 @@ contract AaveV4BatchDeploymentTest is BatchTestProcedures {
     }
   }
 
+  /// @dev Same inputs and salt must produce the same AaveOracle, BabylonSpoke implementation and
+  ///      BabylonSpoke proxy addresses regardless of the deployer's nonce.
+  function testAaveV4BatchDeployment_babylonSpokeAddressesIndependentOfDeployerNonce() public {
+    uint256 snapshotId = vm.snapshotState();
+    OrchestrationReports.FullDeploymentReport memory first = _deployV4();
+
+    vm.revertToState(snapshotId);
+    vm.setNonce(_deployer, vm.getNonce(_deployer) + 7);
+    vm.setNonce(address(this), vm.getNonce(address(this)) + 7);
+    OrchestrationReports.FullDeploymentReport memory second = _deployV4();
+
+    assertGt(first.babylonSpokeInstanceBatchReports.length, 0);
+    for (uint256 i; i < first.babylonSpokeInstanceBatchReports.length; ++i) {
+      BatchReports.SpokeInstanceBatchReport memory a = first
+        .babylonSpokeInstanceBatchReports[i]
+        .report;
+      BatchReports.SpokeInstanceBatchReport memory b = second
+        .babylonSpokeInstanceBatchReports[i]
+        .report;
+      assertEq(a.aaveOracle, b.aaveOracle, 'aave oracle');
+      assertEq(a.spokeImplementation, b.spokeImplementation, 'babylon spoke implementation');
+      assertEq(a.spokeProxy, b.spokeProxy, 'babylon spoke proxy');
+    }
+  }
+
   function testAaveV4BatchDeployment_withoutRoles() public {
     _inputs.grantRoles = false;
     checkedV4Deployment();
