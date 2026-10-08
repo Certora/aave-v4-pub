@@ -36,7 +36,7 @@ contract AaveV4BabylonSpokeInstanceBatch is
     uint8 oracleDecimals_,
     bytes32 salt_
   ) {
-    address aaveOracle = _deployAaveOracle(oracleDecimals_);
+    address aaveOracle = _deployAaveOracle(oracleDecimals_, salt_);
     (address spokeProxy, address spokeImplementation) = _deployUpgradeableBabylonSpokeInstance({
       proxyAdminOwner: proxyAdminOwner_,
       authority: authority_,

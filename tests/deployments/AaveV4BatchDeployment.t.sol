@@ -562,13 +562,15 @@ contract AaveV4BatchDeploymentTest is BatchTestProcedures {
   function _deployV4() internal returns (OrchestrationReports.FullDeploymentReport memory report) {
     bytes memory hubBytecode = BytecodeHelper.getHubBytecode();
     bytes memory spokeBytecode = BytecodeHelper.getSpokeBytecode();
+    bytes memory babylonSpokeBytecode = BytecodeHelper.getBabylonSpokeBytecode();
     vm.startPrank(_deployer);
     report = AaveV4DeployOrchestration.deployAaveV4(
       _logger,
       _deployer,
       _inputs,
       hubBytecode,
-      spokeBytecode
+      spokeBytecode,
+      babylonSpokeBytecode
     );
     vm.stopPrank();
   }
