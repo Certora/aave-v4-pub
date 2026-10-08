@@ -45,6 +45,8 @@ The four groups, and the virtual functions in each, are listed below.
 | `spokeDynamicReserveConfigUpdates()`   | `DynamicReserveConfigUpdate`   | Update a dynamic reserve config                                                        |
 | `spokePositionManagerUpdates()`        | `PositionManagerUpdate`        | Activate/deactivate a PositionManager on a Spoke                                       |
 
+A `DynamicReserveConfigAddition` always states the full config. The engine has no counterpart to the SpokeConfigurator helpers `addCollateralFactor`, `addMaxLiquidationBonus` and `addLiquidationFee`, which copy the latest config, change one field and add the result under a new key. To change fields of an existing key in place, use `DynamicReserveConfigUpdate`.
+
 #### AccessManager actions (`_executeAccessManagerActions`)
 
 | Function                                   | Struct                     | Purpose                                               |
@@ -121,6 +123,8 @@ The `EngineFlags` library defines sentinel values for each width that needs a "s
 
 When a struct field is set to its corresponding sentinel, the engine **skips** updating that field and leaves the on-chain value unchanged. This lets a single struct express partial updates — for example, changing the liquidity fee without touching the fee receiver or IR strategy.
 
+Listing structs (`AssetListing`, `ReserveListing`) have no current value to keep, so a listing field set to its sentinel reverts with `KeepCurrentInListing` instead of being forwarded.
+
 `EngineFlags` also provides boolean convenience constants (`ENABLED = 1`, `DISABLED = 0`) and conversion helpers `toBool(uint256)` / `fromBool(bool)`.
 
 ### Smart partial updates
@@ -132,7 +136,7 @@ Several engine functions inspect which fields differ from `KEEP_CURRENT` and cho
 - **Reserve config** (`SpokeEngine.executeSpokeReserveConfigUpdates`) — each flag (priceSource, collateralRisk, paused, frozen, borrowable, receiveSharesEnabled) is updated individually only when it differs from `KEEP_CURRENT` / `KEEP_CURRENT_ADDRESS`.
 - **Liquidation config** (`SpokeEngine.executeSpokeLiquidationConfigUpdates`) — calls `updateLiquidationConfig` when all three fields change, otherwise updates each field individually.
 - **Dynamic reserve config** (`SpokeEngine.executeSpokeDynamicReserveConfigUpdates`) — reads the current on-chain config, patches only the non-sentinel fields, and writes back the merged result. If nothing changed, the external call is skipped entirely.
-- **Role update** (`AccessManagerEngine.executeRoleUpdates`) — a single `RoleUpdate` struct can update any combination of admin (`uint64`), guardian (`uint64`), grant delay (`uint32`), and label (`string`). Fields set to their type-max sentinel (`KEEP_CURRENT_UINT64` / `KEEP_CURRENT_UINT32`) or empty string are skipped. Set `labelUpdate` to `true` to relabel an already-labeled role — the existing label is cleared first (required by the AccessManagerEnumerable label tracking); with `labelUpdate` `false`, labeling an already-labeled role reverts. Clearing a label without setting a new one is not expressible through the engine and requires a direct `labelRole` call.
+- **Role update** (`AccessManagerEngine.executeRoleUpdates`) — a single `RoleUpdate` struct can update any combination of admin (`uint64`), guardian (`uint64`), grant delay (`uint32`), and label (`string`). Fields set to their typed sentinel (`KEEP_CURRENT_UINT64` = `type(uint64).max - 46`, `KEEP_CURRENT_UINT32` = `type(uint32).max - 23`) or an empty string are skipped. `type(uint64).max` is `PUBLIC_ROLE` and is forwarded as a real value. Set `labelUpdate` to `true` to relabel an already-labeled role — the existing label is cleared first (required by the AccessManagerEnumerable label tracking); with `labelUpdate` `false`, labeling an already-labeled role reverts. Clearing a label without setting a new one is not expressible through the engine and requires a direct `labelRole` call.
 
 ### Delegatecall architecture
 
@@ -147,6 +151,8 @@ When a payload calls `execute()`, `AaveV4Payload` delegate-calls into `AaveV4Con
 
 - Neither the config engine nor the sub-engines hold any storage, permissions, or admin keys.
 - All HubConfigurator, SpokeConfigurator, AccessManager, and PositionManager calls originate from the governance executor's address.
+
+Every engine entry point is `onlyDelegateCall`: a direct call to the engine's own address reverts with `OnlyDelegateCall`. A role granted to the engine address by mistake therefore cannot be exercised through it.
 
 ### Execution context
 
