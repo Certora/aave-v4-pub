@@ -38,7 +38,7 @@ contract LibraryPreCompile is Script {
     }
 
     vm.startBroadcast();
-    SpokeDeployUtils._deployAndWriteLibrariesConfig(bytes32(0));
+    SpokeDeployUtils._deployAndWriteLibrariesConfig(SpokeDeployUtils.LIQUIDATION_LOGIC_SALT);
     vm.stopBroadcast();
 
     console.log('LibraryPreCompile: FOUNDRY_LIBRARIES set. Run the main deploy script.');

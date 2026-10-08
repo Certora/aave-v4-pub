@@ -13,24 +13,68 @@ import {Create2Utils} from 'src/deployments/utils/libraries/Create2Utils.sol';
 library SpokeDeployUtils {
   Vm internal constant vm = Vm(address(uint160(uint256(keccak256('hevm cheat code')))));
 
-  /// @notice Deploys LiquidationLogic via CREATE2.
+  /// @notice The CREATE2 salt of the canonical LiquidationLogic deployment.
+  /// @dev Lands LiquidationLogic at `0x88dF535473C5adf1f57789734A05E555F7Deb8DB`, the address the
+  /// Ethereum Spokes link against.
+  bytes32 internal constant LIQUIDATION_LOGIC_SALT = bytes32(uint256(0x2bdf));
+
+  string internal constant LIQUIDATION_LOGIC_ARTIFACT =
+    'out/LiquidationLogic.sol/LiquidationLogic.json';
+  string internal constant BABYLON_LIQUIDATION_LOGIC_ARTIFACT =
+    'out/BabylonLiquidationLogic.sol/BabylonLiquidationLogic.json';
+  string internal constant LIQUIDATION_LOGIC_FQN =
+    'src/spoke/libraries/LiquidationLogic.sol:LiquidationLogic';
+
+  /// @notice Deploys LiquidationLogic via CREATE2, or returns it if already deployed.
   /// @dev The CREATE2 factory must already be deployed on the target chain.
   /// @param salt The CREATE2 salt for deterministic deployment.
-  /// @return The deployed library address.
+  /// @return The library address.
   function deployLiquidationLogic(bytes32 salt) internal returns (address) {
-    bytes memory bytecode = vm.getCode('src/spoke/libraries/LiquidationLogic.sol:LiquidationLogic');
-    return Create2Utils.create2Deploy(salt, bytecode);
+    return _deployOrGet(salt, vm.getCode(LIQUIDATION_LOGIC_ARTIFACT));
   }
 
-  /// @notice Deploys BabylonLiquidationLogic via CREATE2.
-  /// @dev The CREATE2 factory must already be deployed on the target chain.
+  /// @notice Deploys BabylonLiquidationLogic via CREATE2, linked against the given LiquidationLogic,
+  /// or returns it if already deployed.
+  /// @dev Links the unlinked artifact explicitly, as forge would otherwise link a LiquidationLogic
+  /// it deploys on its own.
   /// @param salt The CREATE2 salt for deterministic deployment.
-  /// @return The deployed library address.
-  function deployBabylonLiquidationLogic(bytes32 salt) internal returns (address) {
-    bytes memory bytecode = vm.getCode(
-      'src/spoke/libraries/BabylonLiquidationLogic.sol:BabylonLiquidationLogic'
+  /// @param liquidationLogic The LiquidationLogic address to link against.
+  /// @return The library address.
+  function deployBabylonLiquidationLogic(
+    bytes32 salt,
+    address liquidationLogic
+  ) internal returns (address) {
+    return _deployOrGet(salt, getLinkedBabylonLiquidationLogicCode(liquidationLogic));
+  }
+
+  /// @notice Returns the BabylonLiquidationLogic creation code linked against the given LiquidationLogic.
+  /// @param liquidationLogic The LiquidationLogic address to link against.
+  /// @return The linked creation code.
+  function getLinkedBabylonLiquidationLogicCode(
+    address liquidationLogic
+  ) internal view returns (bytes memory) {
+    require(liquidationLogic.code.length > 0, 'liquidation logic not deployed');
+    string memory unlinked = vm.parseJsonString(
+      vm.readFile(BABYLON_LIQUIDATION_LOGIC_ARTIFACT),
+      '.bytecode.object'
     );
-    return Create2Utils.create2Deploy(salt, bytecode);
+    string memory placeholder = string.concat(
+      '__$',
+      vm.replace(
+        vm.toString(abi.encodePacked(bytes17(keccak256(bytes(LIQUIDATION_LOGIC_FQN))))),
+        '0x',
+        ''
+      ),
+      '$__'
+    );
+    require(vm.contains(unlinked, placeholder), 'liquidation logic placeholder not found');
+    string memory linked = vm.replace(
+      unlinked,
+      placeholder,
+      vm.replace(vm.toString(liquidationLogic), '0x', '')
+    );
+    require(!vm.contains(linked, '__$'), 'unlinked library reference');
+    return vm.parseBytes(linked);
   }
 
   /// @notice Returns the FOUNDRY_LIBRARIES-compatible string for library linking.
@@ -49,11 +93,11 @@ library SpokeDeployUtils {
       );
   }
 
-  /// @notice Deploys LiquidationLogic and appends FOUNDRY_LIBRARIES to .env.
+  /// @notice Deploys the liquidation libraries and appends FOUNDRY_LIBRARIES to .env.
   /// @param salt The CREATE2 salt for deterministic deployment.
   function _deployAndWriteLibrariesConfig(bytes32 salt) internal {
     address liquidationLogic = deployLiquidationLogic(salt);
-    address babylonLiquidationLogic = deployBabylonLiquidationLogic(salt);
+    address babylonLiquidationLogic = deployBabylonLiquidationLogic(salt, liquidationLogic);
 
     string memory librariesSolcString = getLibraryString(liquidationLogic, babylonLiquidationLogic);
 
@@ -131,5 +175,14 @@ library SpokeDeployUtils {
 
     bytes memory res = vm.ffi(getAddressCommand);
     return abi.decode(res, (address));
+  }
+
+  /// @dev Deploys `bytecode` via CREATE2, or returns the existing contract at its CREATE2 address.
+  function _deployOrGet(bytes32 salt, bytes memory bytecode) private returns (address) {
+    address computed = Create2Utils.computeCreate2Address({salt: salt, bytecode: bytecode});
+    if (Create2Utils.isContractDeployed(computed)) {
+      return computed;
+    }
+    return Create2Utils.create2Deploy(salt, bytecode);
   }
 }
