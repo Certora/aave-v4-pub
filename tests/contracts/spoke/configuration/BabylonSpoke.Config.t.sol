@@ -31,6 +31,11 @@ contract BabylonSpokeConfigTest is BabylonBase {
     address babylonLiquidationLogic = babylonSpoke.getBabylonLiquidationLogic();
     assertGt(babylonLiquidationLogic.code.length, 0);
     assertNotEq(babylonLiquidationLogic, babylonSpoke.getLiquidationLogic());
+    (bool success, bytes memory linked) = babylonLiquidationLogic.staticcall(
+      abi.encodeWithSignature('getLiquidationLogic()')
+    );
+    assertTrue(success);
+    assertEq(abi.decode(linked, (address)), babylonSpoke.getLiquidationLogic());
   }
 
   /// @dev The managed collateral reserve is listed non-borrowable, so nobody can hold debt in it.
