@@ -1,0 +1,111 @@
+================================================================================
+CERTORA 2025 FORMAL VERIFICATION REPORTS - BUGS DETECTED BY PROPERTIES
+================================================================================
+Source: https://www.certora.com/reports
+
+Note: The public website summaries only describe vulnerability categories.
+For specific CVL properties/rules that caught bugs, the full PDF reports
+must be accessed.
+
+================================================================================
+1. infiniFi Protocol (June 4, 2025)
+================================================================================
+Client: infiniFi
+Audit Period: March 21 - May 20, 2025
+
+VULNERABILITIES IDENTIFIED:
+- Redeem-order disruptions
+- Rounding errors affecting yield distribution
+
+STATUS: Bugs found via formal verification and security assessment
+
+--------------------------------------------------------------------------------
+
+================================================================================
+2. Silo Vault (June 4, 2025)
+================================================================================
+Client: Silo
+Audit Period: January 27 - February 10, 2025
+
+VULNERABILITIES IDENTIFIED (CRITICAL):
+- Potential fund loss from inflation attacks
+- Permissionless function exploits
+
+STATUS: Critical issues found via formal verification and security assessment
+
+--------------------------------------------------------------------------------
+
+================================================================================
+3. SiloCore V2 (June 4, 2025)
+================================================================================
+Client: Silo
+Audit Period: March 31 - April 7, 2025
+
+VULNERABILITIES IDENTIFIED:
+- Asset handling vulnerabilities
+- Collateral management issues
+- Share token interaction bugs
+
+STATUS: Bugs found via formal verification and manual security assessment
+
+--------------------------------------------------------------------------------
+
+================================================================================
+4. Safe v1.5.0 (June 16, 2025)
+================================================================================
+Client: Safe
+Scope: Core and extensible modules
+
+VULNERABILITIES IDENTIFIED:
+- Several medium-severity issues
+- Several low-severity issues
+- Numerous gas optimizations
+
+STATUS: Issues found; all properties were verified using Certora Prover
+        and thorough manual audit process
+
+--------------------------------------------------------------------------------
+
+================================================================================
+REPORTS WHERE FV CONFIRMED CORRECTNESS (NO VIOLATIONS)
+================================================================================
+
+- Aave V3 Risk-Steward (June 3, 2025)
+  "our analysis confirms the correctness and safety of the contracts"
+
+================================================================================
+OTHER 2025 FV REPORTS (Bug status unclear from summaries)
+================================================================================
+
+- Kamino Vault (July 7, 2025)
+- Texture 2.0 / SuperLendy (April 11, 2025)
+- Squads Smart Account Program v0.1 (March 11, 2025)
+- SiloCore V2 Supplementary (March 11, 2025)
+- Lido Dual Governance (March 7, 2025)
+- EigenLayer Protocol Slashing (February 24, 2025)
+- Kamino Lending (February 24, 2025)
+- MEV Tax Hook Balancer (February 19, 2025)
+
+================================================================================
+HOW TO GET SPECIFIC CVL PROPERTIES
+================================================================================
+
+To see the actual CVL rules/properties that caught bugs:
+1. Download the full PDF reports from https://www.certora.com/reports
+2. Look for sections titled:
+   - "Formal Verification"
+   - "Verified Properties"
+   - "Specification"
+   - "Counterexamples Found"
+
+Example of what a CVL property looks like:
+
+    rule noFundLoss(address user) {
+        uint256 balanceBefore = token.balanceOf(user);
+        // ... operation ...
+        uint256 balanceAfter = token.balanceOf(user);
+        assert balanceAfter >= balanceBefore;
+    }
+
+================================================================================
+
