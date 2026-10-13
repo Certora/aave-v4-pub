@@ -51,7 +51,7 @@ env:
      # https://prover.certora.com/output/3706259/3f2ad2590f524030a1f2fda1a2e2e7df?anonymousKey=6eeace14f2b9da5128d6b07d1fd164a5df85ee7b # timed out
     certora/conf/Hub.conf --rule supplyExchangeRateIsMonotonic_eliminateDeficit_simplified
      # https://prover.certora.com/output/3706259/e05517a2740a4505bc9e57c2071ddd45/?anonymousKey=13e4e230fce28bcdad30f948f722551a4ae86ca4 
-    certora/conf/Hub.conf --rule totalAssetsCompareToSuppliedAmount_noVirtual
+    certora/conf/HubTotalAssets.conf
      # https://prover.certora.com/output/3706259/704cfccf6943462b97d8512710dafd7e/?anonymousKey=6f19c03f7f6801367691f4df83f9111a34c9bb8b
     certora/conf/HubAdditivity.conf --rule drawAdditivity
      # https://prover.certora.com/output/3706259/f80dd5d21c0e4d1a98e880a51b076ffc/?anonymousKey=65cbddb77a7d447e8ef33f9a24a6281e8fa212ed
