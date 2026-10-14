@@ -220,6 +220,7 @@ override function restoreSummaryCVL(uint256 assetId, uint256 drawnAmount, IHubBa
 // (N) when cond: _notifyRiskPremiumUpdate preserves (C, D) = (Cin, Din). Per iteration k:
 // premium debt preserved (a), distributivity (b), shares change * idx == offset change (c),
 // hook delta in the hooks' own form (e), times price (f), collateral unchanged (d).
+// Breaking out distributivity and multiplication by price gives the solver explicit steps through the nonlinear arithmetic.
 function assertNotifyPreserves(bool cond, mathint Cin, mathint Din) {
     assert cond => (nbCount > 0 => (cSnap[0] == Cin && dSnap[0] == Din)), "N0: loop starts from (Cin, Din)";
     assert cond => (nbCount >= 2 => psA[0] * idxS[0] - offA[0] == psB[0] * idxS[0] - offB[0]), "I1a: iteration 1 preserves premium debt";
@@ -249,6 +250,7 @@ function assertNotifyPreserves(bool cond, mathint Cin, mathint Din) {
 }
 
 // (H) when cond: C' >= C, D' == D  ==>  hf(C', D') >= hf(C, D)
+// Add the arithmetic argument for increasing collateral
 function assertHfMonotoneInC(bool cond, mathint C0, mathint D0, mathint C1, mathint D1) {
     mathint hf0 = ghostHealthFactor[C0][D0];
     mathint hf1 = ghostHealthFactor[C1][D1];
@@ -259,6 +261,7 @@ function assertHfMonotoneInC(bool cond, mathint C0, mathint D0, mathint C1, math
 }
 
 // (H) when cond: C' == C, D' <= D  ==>  hf(C', D') >= hf(C, D)
+// Add the corresponding argument for decreasing debt
 function assertHfMonotoneInD(bool cond, mathint C0, mathint D0, mathint C1, mathint D1) {
     mathint hf0 = ghostHealthFactor[C0][D0];
     mathint hf1 = ghostHealthFactor[C1][D1];
@@ -270,6 +273,7 @@ function assertHfMonotoneInD(bool cond, mathint C0, mathint D0, mathint C1, math
 }
 
 // repay: C unchanged, premium debt drops by restoredPremiumRay, drawn shares drop ==> D' <= D
+// Connects a repayment to the decreasing-debt argument
 function assertRepayReducesDebt(bool cond, mathint C0, mathint D0, mathint ps0, mathint off0, mathint dr0,
                                 mathint ps1, mathint off1, mathint dr1, mathint idx, mathint price) {
     mathint C1 = totalCollateralValueGhost; mathint D1 = totalDebtValueGhost;

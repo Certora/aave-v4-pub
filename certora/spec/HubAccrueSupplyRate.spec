@@ -41,6 +41,7 @@ override function mulDivCVL(uint256 x, uint256 y, uint256 denominator, Math.Roun
     } else { // Math.Rounding.Floor
         res = require_uint256(product / denominator);
     }
+    // Record captured values for the proof
     mdX = x; mdY = y; mdDen = denominator;
     return res;
 }
@@ -170,27 +171,35 @@ rule previewRemoveByShares_withoutAccrue_time_monotonic(uint256 assetId, uint256
     mathint fee = hub._assets[assetId].liquidityFee;
     mathint C = hub._assets[assetId].liquidity + hub._assets[assetId].swept - hub._assets[assetId].realizedFees;
     mathint S = hub._assets[assetId].addedShares;
+    // Reconstruct aggregated owed amount at each index (drawn debt, premium debt, and deficit)
     mathint O0 = dS * i0 + (pS * i0 - off) + def;
     mathint O1 = dS * i1 + (pS * i1 - off) + def;
     mathint O2 = dS * i2 + (pS * i2 - off) + def;
     mathint O3 = dS * i3 + (pS * i3 - off) + def;
+    // convert amounts into asset units rounding up
     mathint Ou0 = (O0 + RAY - 1) / RAY;
     mathint Ou1 = (O1 + RAY - 1) / RAY;
     mathint Ou2 = (O2 + RAY - 1) / RAY;
     mathint Ou3 = (O3 + RAY - 1) / RAY;
+    // Calculate growth 
     mathint D2 = Ou2 - Ou0;
     mathint D3 = Ou3 - Ou0;
+    // Calculate fees
     mathint UF2 = (i2 == i0 || fee == 0) ? 0 : (D2 * fee) / PERCENTAGE_FACTOR;
     mathint UF3 = (i3 == i0 || fee == 0) ? 0 : (D3 * fee) / PERCENTAGE_FACTOR;
+    // Reconstruct total added assets at each timestamp
     mathint TA1 = C + Ou1;
     mathint TA2 = C + Ou2 - UF2;
     mathint TA3 = C + Ou3 - UF3;
 
     mathint assets_e1 = previewRemoveByShares(e1, assetId, shares);
+    // Record captured values for the proof
     mathint x1 = mdX; mathint y1 = mdY; mathint n1 = mdDen;
     mathint assets_e2 = previewRemoveByShares(e2, assetId, shares);
+    // Record captured values for the proof
     mathint x2 = mdX; mathint y2 = mdY; mathint n2 = mdDen;
     mathint assets_e3 = previewRemoveByShares(e3, assetId, shares);
+    // Record captured values for the proof
     mathint x3 = mdX; mathint y3 = mdY; mathint n3 = mdDen;
 
     // link captured values to the code

@@ -13,10 +13,12 @@ import "./symbolicRepresentation/ERC20s_CVL.spec";
 import "./symbolicRepresentation/Math_CVL.spec";
 import "./Hub.spec";
 
+// Record inputs and result of rounded up muldivCalls 
 // Split proof of removeAdditivity: inputs and result of the last ceil Math.mulDiv
 // (same body as Math_CVL.spec + ghost writes).
 ghost mathint mdCx; ghost mathint mdCy; ghost mathint mdCden; ghost mathint mdCres;
 
+// override preserves the imported summary’s arithmetic and records these values before returning
 override function mulDivCVL(uint256 x, uint256 y, uint256 denominator, Math.Rounding rounding) returns uint256 {
     if (denominator == 0) {
         revert();
@@ -75,17 +77,22 @@ rule removeAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address
     storage init = lastStorage;
 
     remove(e, assetId, amountX, from);
+    // Conversion inputs and shares burned by first withdrawal
     mathint x1 = mdCx; mathint y1 = mdCy; mathint d1 = mdCden; mathint s1 = mdCres;
     remove(e, assetId, amountY, from);
+    // Conversion inputs and shares burned by second withdrawal
     mathint x2 = mdCx; mathint y2 = mdCy; mathint d2 = mdCden; mathint s2 = mdCres;
+    // Hub asset's remaining total shares
     mathint assetSharesAfterTwoSteps = hub._assets[assetId].addedShares;
     uint256 afterTwoSteps = getSpokeAddedShares(e, assetId, spoke);
 
-    //expecting the code to enforce that amountX+amountY can not overflow
+    // Expecting the code to enforce that amountX+amountY can not overflow
     remove(e, assetId, assert_uint256(amountX + amountY), from)at init;
+    // Combined withdrawal's conversion
     mathint x3 = mdCx; mathint y3 = mdCy; mathint d3 = mdCden; mathint s12 = mdCres;
     uint256 afterOneStep = getSpokeAddedShares(e, assetId, spoke);
 
+    // Delta measures the first withdrawal's rounding excess
     mathint delta = s1 * d1 - x1 * y1;
 
     // link captured values to the code
@@ -98,6 +105,7 @@ rule removeAdditivity(uint256 assetId, uint256 amountX, uint256 amountY, address
     assert d1 > 0 && d2 > 0, "K7: denominators positive";
 
     // arithmetic chain
+    // Express ceiling rounding bounds
     assert s1 * d1 >= x1 * y1, "L1: ceil step 1";
     assert s2 * d2 >= x2 * y2, "L2: ceil step 2";
     assert y2 == assetSharesAfterTwoSteps + s2 + 10^6, "N1a: S1 = asset shares after step 2 + s2 + virtual";
